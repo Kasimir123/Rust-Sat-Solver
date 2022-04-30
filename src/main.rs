@@ -15,10 +15,12 @@ fn main() {
     // initialize the solver
     let mut solver = Solver::new();
 
-    // let benchmark_file =
-    //     File::open("./benchmark-cases/uf20.cnf").expect("failed to open benchmark file");
+    let f = "./benchmark-cases/uf20.cnf";
+    // let f = "./benchmark-cases/uf50.cnf";
+    // let f = "./benchmark-cases/uf75.cnf";
+
     let benchmark_file =
-        File::open("./benchmark-cases/uf50.cnf").expect("failed to open benchmark file");
+        File::open(f).expect("failed to open benchmark file");
 
     // start the timer
     let start = Instant::now();

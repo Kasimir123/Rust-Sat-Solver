@@ -23,6 +23,8 @@ pub struct Solver {
 
     connections: Vec<Connection>,
 
+    variable_connections: Vec<Vec<usize>>,
+
     // number of backtracks
     backtracks: usize,
 
@@ -37,6 +39,7 @@ impl Solver {
             variables: Vec::new(),
             connection_groups: Vec::new(),
             connections: Vec::new(),
+            variable_connections: Vec::new(),
             backtracks: 0,
             connections_checked: 0,
         }
@@ -55,6 +58,7 @@ impl Solver {
         new_var.pos = self.variables.len();
 
         self.variables.push(new_var);
+        self.variable_connections.push(Vec::new());
 
         Some(self.variables.len() - 1)
     }
@@ -86,6 +90,7 @@ impl Solver {
                     let var_pos = self.add_variable(var_name.to_owned()).unwrap();
                     let connection = Connection::new(var_pos, !neg);
                     self.connections.push(connection);
+                    self.variable_connections.get_mut(var_pos).unwrap().push(self.connection_groups.len());
 
                     con_group.connections.push(self.connections.len() - 1);
                 }
@@ -150,7 +155,20 @@ impl Solver {
             // loop through connections and perform out checks
 
             let mut connections_checked = 0;
-            let check = self.connection_groups.iter().all(|group| {
+            // let check = self.connection_groups.iter().all(|group| {
+            //     let or_check = group.connections.iter().any(|con| {
+            //         connections_checked += 1;
+            //         self.check_connection(*con as usize).unwrap()
+            //     });
+
+            //     or_check
+            // });
+
+
+            let check = self.variable_connections.get(pos).unwrap().iter().all(|group| {
+
+                let group = self.connection_groups.get(*group).unwrap();
+
                 let or_check = group.connections.iter().any(|con| {
                     connections_checked += 1;
                     self.check_connection(*con as usize).unwrap()
