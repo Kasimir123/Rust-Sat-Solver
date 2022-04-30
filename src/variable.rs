@@ -1,7 +1,8 @@
+#[derive(Eq)]
+#[derive(Hash)]
 pub struct Variable {
     pub name: String,
     pub value: Option<bool>,
-    pub has_been_set_before: Option<bool>,
     pub pos: usize,
 }
 
@@ -10,8 +11,12 @@ impl Variable {
         Variable {
             name,
             value: None,
-            has_been_set_before: Some(false),
             pos: !0,
         }
+    }
+}
+impl PartialEq for Variable {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
     }
 }
