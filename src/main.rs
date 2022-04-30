@@ -18,9 +18,9 @@ fn main() {
     // let f = "./benchmark-cases/uf20.cnf";
     // let f = "./benchmark-cases/uf50.cnf";
     // let f = "./benchmark-cases/uf75.cnf";
-    // let f = "./benchmark-cases/uf100.cnf";
+    let f = "./benchmark-cases/uf100.cnf";
     // let f = "./benchmark-cases/uf125.cnf";
-    let f = "./benchmark-cases/uf150.cnf";
+    // let f = "./benchmark-cases/uf150.cnf";
     // let f = "./benchmark-cases/uf175.cnf";
 
     let benchmark_file = File::open(f).expect("failed to open benchmark file");

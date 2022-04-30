@@ -1,0 +1,6 @@
+(undo-tree-save-format-version . 1)
+"fc6de5e8de6738691fc3e26d2a9c4d6bc2600c02"
+[nil nil nil nil (25197 36619 1223 200000) 0 nil]
+([nil nil ((apply -3 512 558 undo--wrap-and-run-primitive-undo 512 558 ((nil fontified t 516 . 519) (516 . 519) 541)) (t 25197 36403 611667 200000)) nil (25197 36619 1220 800000) 0 nil])
+([nil current ((apply 3 420 462 undo--wrap-and-run-primitive-undo 420 462 ((#("// " 0 3 (fontified t face font-lock-comment-delimiter-face)) . -424) 451))) nil (25197 36619 1196 100000) 0 nil])
+nil

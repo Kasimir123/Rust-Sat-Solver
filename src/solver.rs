@@ -212,6 +212,72 @@ impl Solver {
         };
     }
 
+    pub fn get_lcv(&self, cur: &Variable) -> bool {
+        let mut connections_checked = 0;
+
+        let mut set = false;
+        let mut min_con: Option<usize> = None;
+        let mut min_val: Option<usize> = None;
+
+        for i in 0..self.connection_groups.len() {
+            let group = self.connection_groups.get(i).unwrap();
+            let or_check = group.connections.iter().any(|con| {
+                connections_checked += 1;
+                self.check_connection_not_null(*con as usize).unwrap()
+            });
+
+            if !or_check {
+                let mut count = 0;
+                for connection in group.connections.iter() {
+                    if self
+                        .variables
+                        .get(self.connections.get(*connection).unwrap().var_pos)
+                        .unwrap()
+                        .value
+                        == None
+                    {
+                        count += 1;
+                    }
+                }
+                if !set {
+                    set = true;
+                    min_con = Some(i);
+                    min_val = Some(count);
+                } else if count < min_val.unwrap() {
+                    min_con = Some(i);
+                    min_val = Some(count);
+                }
+
+                if min_val.unwrap() == 1 {
+                    break;
+                }
+            }
+        }
+
+        if set {
+            for con in self
+                .connection_groups
+                .get(min_con.unwrap())
+                .unwrap()
+                .connections
+                .iter()
+            {
+                let var = self
+                    .variables
+                    .get(self.connections.get(*con).unwrap().var_pos)
+                    .unwrap();
+                if var.value == None {
+                    return CurResult {
+                        set: true,
+                        cur: Some(var.pos),
+                        connections_checked,
+                    };
+                }
+            }
+        }
+        return true;
+    }
+
     // solves the sat problem
     pub fn solve(&mut self) -> SolveResult {
         // initialize a vector to hold assigned values
@@ -232,6 +298,8 @@ impl Solver {
 
         assigned.push(next_cur.cur.unwrap());
 
+        let mut cur_value_switch = 1;
+
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
             // if everything is assigned then return true
@@ -250,11 +318,11 @@ impl Solver {
 
             // gets the variables position
             let pos = cur.pos;
-
-            let new_val = match cur.value {
-                None => Some(true),
-                Some(true) => Some(false),
-                Some(false) => unreachable!(),
+            
+            let new_val = match cur_value_switch {
+                1 => Some(self.get_lcv(cur)),
+                2 => Some(cur.value),
+                3 => unreachable!(),
             };
 
             self.variables[pos].value = new_val;
