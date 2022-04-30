@@ -3,6 +3,7 @@ use crate::connections::{Connection, ConnectionGroup};
 use crate::variable::Variable;
 
 // import required imports
+use std::collections::HashMap;
 use std::error::Error;
 
 use std::io::{BufRead, BufReader, Read};
@@ -11,6 +12,12 @@ pub struct SolveResult {
     pub sat: bool,
     pub connections_checked: u64,
     pub num_backtracks: u64,
+}
+
+pub struct CurResult {
+    pub set: bool,
+    pub cur: Option<usize>,
+    pub connections_checked: usize,
 }
 
 #[derive(Default)]
@@ -90,7 +97,10 @@ impl Solver {
                     let var_pos = self.add_variable(var_name.to_owned()).unwrap();
                     let connection = Connection::new(var_pos, !neg);
                     self.connections.push(connection);
-                    self.variable_connections.get_mut(var_pos).unwrap().push(self.connection_groups.len());
+                    self.variable_connections
+                        .get_mut(var_pos)
+                        .unwrap()
+                        .push(self.connection_groups.len());
 
                     con_group.connections.push(self.connections.len() - 1);
                 }
@@ -119,13 +129,104 @@ impl Solver {
         Some(var.value? == connection.val)
     }
 
+    // checks an individual connection
+    pub fn check_connection_not_null(&self, connection: usize) -> Option<bool> {
+        let connection = self.connections.get(connection)?;
+
+        let var = self.variables.get(connection.var_pos)?;
+
+        if var.value == None {
+            return Some(false);
+        }
+
+        Some(var.value? == connection.val)
+    }
+
+    pub fn get_next_cur(&self) -> CurResult {
+        let mut connections_checked = 0;
+
+        let mut set = false;
+        let mut min_con: Option<usize> = None;
+        let mut min_val: Option<usize> = None;
+
+        for i in 0..self.connection_groups.len() {
+            let group = self.connection_groups.get(i).unwrap();
+            let or_check = group.connections.iter().any(|con| {
+                connections_checked += 1;
+                self.check_connection_not_null(*con as usize).unwrap()
+            });
+
+            if !or_check {
+                let mut count = 0;
+                for connection in group.connections.iter() {
+                    if self
+                        .variables
+                        .get(self.connections.get(*connection).unwrap().var_pos)
+                        .unwrap()
+                        .value
+                        == None
+                    {
+                        count += 1;
+                    }
+                }
+                if !set {
+                    set = true;
+                    min_con = Some(i);
+                    min_val = Some(count);
+                } else if count < min_val.unwrap() {
+                    min_con = Some(i);
+                    min_val = Some(count);
+                }
+            }
+        }
+
+        if set {
+            for con in self
+                .connection_groups
+                .get(min_con.unwrap())
+                .unwrap()
+                .connections
+                .iter()
+            {
+                let var = self
+                    .variables
+                    .get(self.connections.get(*con).unwrap().var_pos)
+                    .unwrap();
+                if var.value == None {
+                    return CurResult {
+                        set: true,
+                        cur: Some(var.pos),
+                        connections_checked,
+                    };
+                }
+            }
+        }
+        return CurResult {
+            set: false,
+            cur: None,
+            connections_checked,
+        };
+    }
+
     // solves the sat problem
     pub fn solve(&mut self) -> SolveResult {
         // initialize a vector to hold assigned values
         let mut assigned = Vec::new();
 
         // push the first value into the assigned values
-        assigned.push(self.variables[assigned.len()].pos);
+        let next_cur = self.get_next_cur();
+
+        self.connections_checked += next_cur.connections_checked;
+
+        if !next_cur.set {
+            return SolveResult {
+                sat: true,
+                connections_checked: self.connections_checked as u64,
+                num_backtracks: self.backtracks as u64,
+            };
+        }
+
+        assigned.push(next_cur.cur.unwrap());
 
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
@@ -139,7 +240,9 @@ impl Solver {
             }
 
             // gets the variable to assigned
-            let cur = self.variables.get(*assigned.last().unwrap()).unwrap();
+            let mut cur = self.variables.get(*assigned.last().unwrap()).unwrap();
+
+            let mut connections_checked = 0;
 
             // gets the variables position
             let pos = cur.pos;
@@ -154,34 +257,39 @@ impl Solver {
 
             // loop through connections and perform out checks
 
-            let mut connections_checked = 0;
-            // let check = self.connection_groups.iter().all(|group| {
-            //     let or_check = group.connections.iter().any(|con| {
-            //         connections_checked += 1;
-            //         self.check_connection(*con as usize).unwrap()
-            //     });
+            let check = self
+                .variable_connections
+                .get(pos)
+                .unwrap()
+                .iter()
+                .all(|group| {
+                    let group = self.connection_groups.get(*group).unwrap();
 
-            //     or_check
-            // });
+                    let or_check = group.connections.iter().any(|con| {
+                        connections_checked += 1;
+                        self.check_connection(*con as usize).unwrap()
+                    });
 
-
-            let check = self.variable_connections.get(pos).unwrap().iter().all(|group| {
-
-                let group = self.connection_groups.get(*group).unwrap();
-
-                let or_check = group.connections.iter().any(|con| {
-                    connections_checked += 1;
-                    self.check_connection(*con as usize).unwrap()
+                    or_check
                 });
-
-                or_check
-            });
 
             self.connections_checked += connections_checked;
 
             // if check is true, push the next variable to be assigned
             if check {
-                assigned.push(self.variables[assigned.len()].pos);
+                let next_cur = self.get_next_cur();
+
+                self.connections_checked += next_cur.connections_checked;
+
+                if !next_cur.set {
+                    return SolveResult {
+                        sat: true,
+                        connections_checked: self.connections_checked as u64,
+                        num_backtracks: self.backtracks as u64,
+                    };
+                }
+
+                assigned.push(next_cur.cur.unwrap());
             }
             // else, if the value was false, go through and backtrack
             else {
