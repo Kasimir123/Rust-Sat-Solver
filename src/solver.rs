@@ -177,6 +177,10 @@ impl Solver {
                     min_con = Some(i);
                     min_val = Some(count);
                 }
+
+                if min_val.unwrap() == 1 {
+                    break;
+                }
             }
         }
 
