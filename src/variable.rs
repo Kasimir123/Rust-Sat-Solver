@@ -10,7 +10,7 @@ impl Variable {
         Variable {
             name,
             value: None,
-            has_been_set_before: None,
+            has_been_set_before: Some(false),
             pos: !0,
         }
     }

@@ -214,10 +214,9 @@ impl Solver {
 
     pub fn get_lcv(&self, cur: &Variable) -> bool {
         let mut connections_checked = 0;
-
-        let mut set = false;
-        let mut min_con: Option<usize> = None;
-        let mut min_val: Option<usize> = None;
+        
+        let mut literal_sign: bool;
+        let mut var_score = 0;
 
         for i in 0..self.connection_groups.len() {
             let group = self.connection_groups.get(i).unwrap();
@@ -227,55 +226,29 @@ impl Solver {
             });
 
             if !or_check {
-                let mut count = 0;
                 for connection in group.connections.iter() {
                     if self
                         .variables
                         .get(self.connections.get(*connection).unwrap().var_pos)
                         .unwrap()
-                        .value
-                        == None
+                        .name
+                        == cur.name
                     {
-                        count += 1;
+                        literal_sign = self.connections.get(*connection)
+                            .unwrap().val;
+                        if literal_sign {
+                            var_score += 1;
+                        } else {
+                            var_score -= 1;
+                        }
                     }
                 }
-                if !set {
-                    set = true;
-                    min_con = Some(i);
-                    min_val = Some(count);
-                } else if count < min_val.unwrap() {
-                    min_con = Some(i);
-                    min_val = Some(count);
-                }
-
-                if min_val.unwrap() == 1 {
-                    break;
-                }
             }
         }
-
-        if set {
-            for con in self
-                .connection_groups
-                .get(min_con.unwrap())
-                .unwrap()
-                .connections
-                .iter()
-            {
-                let var = self
-                    .variables
-                    .get(self.connections.get(*con).unwrap().var_pos)
-                    .unwrap();
-                if var.value == None {
-                    return CurResult {
-                        set: true,
-                        cur: Some(var.pos),
-                        connections_checked,
-                    };
-                }
-            }
+        if var_score >= 0 {
+            return true;
         }
-        return true;
+        return false;
     }
 
     // solves the sat problem
@@ -316,11 +289,11 @@ impl Solver {
 
             // gets the variables position
             let pos = cur.pos;
-            
-            let new_val = match cur_value_switch {
-                0 => Some(self.get_lcv(cur)),
-                1 => Some(!cur.value.unwrap()),
-                2 => unreachable!(),
+
+            let new_val = match cur.has_been_set_before {
+                Some(false) => Some(self.get_lcv(cur)),
+                Some(true) => Some(!cur.value.unwrap()),
+                None => unreachable!(),
             };
 
             self.variables[pos].value = new_val;
@@ -363,9 +336,14 @@ impl Solver {
             }
             // else, if the value was false, go through and backtrack
             else {
-                while matches!(
-                    self.variables.get(*assigned.last().unwrap()).unwrap().value,
-                    Some(false)
+                cur.has_been_set_before = match cur.has_been_set_before {
+                    Some(false) => Some(true),
+                    Some(true) => None,
+                    None => unreachable!(),
+                };
+                if matches!(
+                    cur.has_been_set_before,
+                    Some(true)
                 ) {
                     let assigned_last = assigned.pop().unwrap();
                     self.variables[assigned_last].value = None;
