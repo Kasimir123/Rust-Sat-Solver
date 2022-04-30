@@ -15,10 +15,10 @@ fn main() {
     // initialize the solver
     let mut solver = Solver::new();
 
-    let benchmark_file =
-        File::open("./benchmark-cases/uf20.cnf").expect("failed to open benchmark file"); 
     // let benchmark_file =
-    //     File::open("./benchmark-cases/uf50.cnf").expect("failed to open benchmark file");
+    //     File::open("./benchmark-cases/uf20.cnf").expect("failed to open benchmark file");
+    let benchmark_file =
+        File::open("./benchmark-cases/uf50.cnf").expect("failed to open benchmark file");
 
     // start the timer
     let start = Instant::now();
@@ -40,6 +40,9 @@ fn main() {
     println!("Time:                     {}", elapsed);
     // println!("Number of Variables:      {}", solver.variables.len());
     // println!("Number of Connections:    {}", solver.connections.len());
-    println!("Connections Checked:      {}", solve_result.connections_checked);
+    println!(
+        "Connections Checked:      {}",
+        solve_result.connections_checked
+    );
     println!("Backtracks:               {}", solve_result.num_backtracks);
 }

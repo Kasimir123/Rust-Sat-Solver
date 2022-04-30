@@ -3,12 +3,9 @@ use crate::connections::{Connection, ConnectionGroup};
 use crate::variable::Variable;
 
 // import required imports
-use std::fs::File;
-use std::path::Path;
 use std::error::Error;
 
 use std::io::{BufRead, BufReader, Read};
-use std::rc::Rc;
 
 pub struct SolveResult {
     pub sat: bool,
@@ -22,7 +19,9 @@ pub struct Solver {
     variables: Vec<Variable>,
 
     // connections in the solver
-    connections: Vec<ConnectionGroup>,
+    connection_groups: Vec<ConnectionGroup>,
+
+    connections: Vec<Connection>,
 
     // number of backtracks
     backtracks: usize,
@@ -36,6 +35,7 @@ impl Solver {
     pub fn new() -> Self {
         Solver {
             variables: Vec::new(),
+            connection_groups: Vec::new(),
             connections: Vec::new(),
             backtracks: 0,
             connections_checked: 0,
@@ -59,83 +59,59 @@ impl Solver {
         Some(self.variables.len() - 1)
     }
 
-    // gets a variable from the variables based on position
-    pub fn get_variable(&self, pos: usize) -> Option<&Variable> {
-        return Some(&self.variables[pos]);
-    }
-
-    // sets a variable from the variables to the passed value based on position
-    pub fn set_variable(&mut self, pos: usize, val: bool) {
-        self.variables[pos].is_set = true;
-        self.variables[pos].value = val;
-    }
-
-    // sets a variable from the variables back to not set based on position
-    pub fn unset_variable(&mut self, pos: usize) {
-        self.variables[pos].is_set = false;
-    }
-
     // loads the standard cnf benchmark file into the solver
     pub fn load_cnf(&mut self, source: impl Read) -> Result<(), Box<dyn Error>> {
         let buf_reader = BufReader::new(source);
         let mut check = false;
         for maybe_line in buf_reader.lines() {
             let line = maybe_line?;
-                    if line.contains("p cnf") {
-                        check = true;
-                    } else if line.contains("%") {
-                        return Ok(());
-                    } else if check {
-                        let st = line.trim();
-                        let st = st.split(" ");
-                        let st: Vec<&str> = st.collect();
+            if line.contains("p cnf") {
+                check = true;
+            } else if line.contains('%') {
+                return Ok(());
+            } else if check {
+                let st = line.trim();
+                let st = st.split(' ');
+                let st: Vec<&str> = st.collect();
 
-                        let mut con_group = ConnectionGroup::new();
+                let mut con_group = ConnectionGroup::default();
 
-                        for i in 0..3 {
-                            let mut var_name = st[i];
-                            let neg = var_name.contains("-");
-                            if neg {
-                                var_name = &var_name[1..];
-                            }
-
-                            let var_pos = self.add_variable(var_name.to_owned()).unwrap();
-                            let connection = Connection::new(var_pos, !neg);
-
-                            con_group.connections.push(connection);
-                        }
-
-                        self.connections.push(con_group);
+                for i in 0..3 {
+                    let mut var_name = st[i];
+                    let neg = var_name.contains('-');
+                    if neg {
+                        var_name = &var_name[1..];
                     }
+
+                    let var_pos = self.add_variable(var_name.to_owned()).unwrap();
+                    let connection = Connection::new(var_pos, !neg);
+                    self.connections.push(connection);
+
+                    con_group.connections.push(self.connections.len() - 1);
                 }
+
+                self.connection_groups.push(con_group);
+            }
+        }
         Ok(())
     }
 
     // checks an individual connection
-    pub fn check_connection(&self, connection: &Connection) -> Option<bool> {
-        let var = self.get_variable(connection.var_pos)?;
+    pub fn check_connection(&self, connection: usize) -> Option<bool> {
+        let connection = self.connections.get(connection)?;
 
-        if !var.is_set {
+        let var = self.variables.get(connection.var_pos)?;
+
+        let ret = match var.value {
+            None => Some(true),
+            _ => Some(false),
+        };
+
+        if ret? {
             return Some(true);
         }
 
-        Some(var.value == connection.val)
-    }
-
-    // checks a connection group
-    pub fn check_group(&mut self, group_pos: usize) -> Option<bool> {
-        let mut check = false;
-
-        for i in 0..self.connections[group_pos].connections.len() {
-            check |= self.check_connection(&self.connections[group_pos].connections[i])?;
-            self.connections_checked += 1;
-
-            if check {
-                return Some(check);
-            }
-        }
-
-        Some(check)
+        Some(var.value? == connection.val)
     }
 
     // solves the sat problem
@@ -147,51 +123,56 @@ impl Solver {
         assigned.push(self.variables[assigned.len()].pos);
 
         // while we have at least one value to be assigned
-        while assigned.len() > 0 {
-            // intialize the check to true
-            let mut check = true;
-
+        while !assigned.is_empty() {
             // if everything is assigned then return true
             if assigned.len() >= self.variables.len() {
                 return SolveResult {
                     sat: true,
                     connections_checked: self.connections_checked as u64,
-                    num_backtracks: self.backtracks as u64
+                    num_backtracks: self.backtracks as u64,
                 };
             }
 
             // gets the variable to assigned
-            let cur = self.get_variable(*assigned.last().unwrap()).unwrap();
+            let cur = self.variables.get(*assigned.last().unwrap()).unwrap();
 
             // gets the variables position
             let pos = cur.pos;
 
-            // if the variable isn't set, set it to true
-            if !cur.is_set {
-                self.set_variable(pos, true);
-            }
-            // otherwise, if set to true, set to false
-            else if cur.value {
-                self.set_variable(pos, false);
-            }
+            let new_val = match cur.value {
+                None => Some(true),
+                Some(true) => Some(false),
+                Some(false) => unreachable!(),
+            };
+
+            self.variables[pos].value = new_val;
 
             // loop through connections and perform out checks
-            for con in 0..self.connections.len() {
-                if !self.check_group(con).unwrap() {
-                    check = false;
-                    break;
-                }
-            }
+
+            let mut connections_checked = 0;
+            let check = self.connection_groups.iter().all(|group| {
+                let or_check = group.connections.iter().any(|con| {
+                    connections_checked += 1;
+                    self.check_connection(*con as usize).unwrap()
+                });
+
+                or_check
+            });
+
+            self.connections_checked += connections_checked;
 
             // if check is true, push the next variable to be assigned
             if check {
                 assigned.push(self.variables[assigned.len()].pos);
             }
             // else, if the value was false, go through and backtrack
-            else if !self.get_variable(pos).unwrap().value {
-                while !self.get_variable(*assigned.last().unwrap()).unwrap().value {
-                    self.unset_variable(*assigned.last().unwrap());
-                    assigned.pop();
+            else {
+                while matches!(
+                    self.variables.get(*assigned.last().unwrap()).unwrap().value,
+                    Some(false)
+                ) {
+                    let assigned_last = assigned.pop().unwrap();
+                    self.variables[assigned_last].value = None;
                     self.backtracks += 1;
                 }
             }
@@ -201,14 +182,14 @@ impl Solver {
         SolveResult {
             sat: false,
             connections_checked: self.connections_checked as u64,
-            num_backtracks: self.backtracks as u64
+            num_backtracks: self.backtracks as u64,
         }
     }
 
     // prints out the variables
     pub fn print_variables(&self) {
         for var in &self.variables {
-            println!("{} {}", var.name, var.value);
+            println!("{} {}", var.name, var.value.unwrap());
         }
     }
 }
