@@ -353,7 +353,7 @@ impl Solver {
             }
             // else, if the value was false, go through and backtrack
             else {
-                if matches!(
+                while matches!(
                     var_exhausted.get(&assigned_index),
                     Some(true)
                 ) {
