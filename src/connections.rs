@@ -1,26 +1,59 @@
+use std::rc::Rc;
+
+use crate::variable::Variable;
+
+#[derive(Debug)]
 pub struct Connection {
-    pub val: bool,
-    pub var_pos: usize
+    val: bool,
+    variable: Rc<Variable>,
 }
 
 impl Connection {
-    pub fn new(pos: usize, val: bool) -> Self {
-        Connection {
-            val: val,
-            var_pos: pos
-        }
+    pub fn new(variable: Rc<Variable>, val: bool) -> Self {
+        Connection { val, variable }
     }
 }
 
+pub struct GroupCheckResult {
+    pub success: bool,
+    pub connections_checked: u64,
+}
+
+#[derive(Default)]
 pub struct ConnectionGroup {
-    pub connections: Vec<Connection>
+    connections: Vec<Connection>,
 }
 
 impl ConnectionGroup {
-    pub fn new() -> Self {
-        ConnectionGroup {
-            connections: Vec::new(),
-        }
+    pub fn add_connection(&mut self, connection: Connection) {
+        self.connections.push(connection);
     }
 
+    pub fn num_connections(&self) -> usize {
+        self.connections.len()
+    }
+
+    pub fn check_group(&self) -> GroupCheckResult {
+        let mut connections_checked = 0;
+        for connection in self.connections.iter() {
+            connections_checked += 1;
+
+            if connection
+                .variable
+                .maybe_value
+                .get()
+                .map_or(true, |variable_value| variable_value == connection.val)
+            {
+                return GroupCheckResult {
+                    success: true,
+                    connections_checked,
+                };
+            }
+        }
+
+        GroupCheckResult {
+            success: false,
+            connections_checked,
+        }
+    }
 }

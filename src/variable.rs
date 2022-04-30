@@ -1,17 +1,16 @@
+use std::cell::Cell;
+
+#[derive(Debug)]
 pub struct Variable {
     pub name: String,
-    pub value: bool,
-    pub is_set: bool,
-    pub pos: usize
+    pub maybe_value: Cell<Option<bool>>,
 }
 
 impl Variable {
     pub fn new(name: String) -> Self {
         Variable {
-            name: name,
-            value: true,
-            is_set: false,
-            pos: !0
+            name,
+            maybe_value: Cell::new(None),
         }
     }
 }
