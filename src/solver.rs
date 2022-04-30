@@ -1,216 +1,166 @@
 // import out structs
-use crate::variable::Variable;
 use crate::connections::{Connection, ConnectionGroup};
+use crate::variable::Variable;
 
+use std::cell::RefCell;
+use std::error::Error;
 // import required imports
-use std::fs::File;
-use std::io::{self, BufRead};
-use std::path::Path;
+use std::io::{BufRead, BufReader, Read};
+use std::rc::Rc;
 
-pub struct Solver {
-    // variables in the solver
-    pub variables: Vec<Variable>,
-
-    // connections in the solver
-    pub connections: Vec<ConnectionGroup>,
-
-    // number of backtracks
-    pub backtracks: usize,
-
-    // number of connections checked
-    pub connections_checked: usize,
+pub struct SolveResult {
+    pub sat: bool,
+    pub connections_checked: u64,
+    pub num_backtracks: u64,
 }
 
-// used to read lines from the file, taken from rust docs
-fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where P: AsRef<Path>, {
-    let file = File::open(filename)?;
-    Ok(io::BufReader::new(file).lines())
+#[derive(Default)]
+pub struct Solver {
+    // variables in the solver
+    variables: Vec<Rc<RefCell<Variable>>>,
+
+    // connections in the solver
+    connection_groups: Vec<ConnectionGroup>,
 }
 
 impl Solver {
-
     // create a new solver instance
     pub fn new() -> Self {
         Solver {
             variables: Vec::new(),
-            connections: Vec::new(),
-            backtracks: 0,
-            connections_checked: 0,
+            connection_groups: Vec::new(),
         }
     }
 
     // adds a variable to the solver, if the variable exists then return its position,
     // otherwise add it and return the position
-    pub fn add_variable(&mut self, name: String) -> Option<usize> {
-
-        for i in 0..self.variables.len() {
-            if self.variables[i].name.eq(&name) {
-                return Some(i);
+    pub fn add_variable(&mut self, name: String) -> Result<Rc<RefCell<Variable>>, Box<dyn Error>> {
+        for variable in self.variables.iter() {
+            if variable.borrow().name == name {
+                return Ok(Rc::clone(variable));
             }
         }
 
-        let mut new_var = Variable::new(name);
-        new_var.pos = self.variables.len();
+        let new_var = Rc::new(RefCell::new(Variable::new(name)));
 
-        self.variables.push(new_var);
+        self.variables.push(Rc::clone(&new_var));
 
-        Some(self.variables.len() - 1)
-    }
-
-    // gets a variable from the variables based on position 
-    pub fn get_variable(&self, pos: usize) -> Option<&Variable> {
-        return Some(&self.variables[pos]);
-    }
-
-    
-    // sets a variable from the variables to the passed value based on position 
-    pub fn set_variable(&mut self, pos: usize, val: bool) {
-        self.variables[pos].is_set = true;
-        self.variables[pos].value = val;
-    }
-
-    // sets a variable from the variables back to not set based on position 
-    pub fn unset_variable(&mut self, pos: usize,) {
-        self.variables[pos].is_set = false;
+        Ok(new_var)
     }
 
     // loads the standard cnf benchmark file into the solver
-    pub fn load_cnf<P: AsRef<Path>>(&mut self, filename: P) -> Option<()> {
-        if let Ok(lines) = read_lines(filename) {
-            let mut check = false;
-            for line in lines {
-                if let Ok(ip) = line {
-                    if ip.contains("p cnf") {
-                        check = true;
-                    }
-                    else if ip.contains("%") {
-                        return Some(());
-                    }
-                    else if check {
-                        let st = ip.trim();
-                        let st = st.split(" ");
-                        let st: Vec<&str> = st.collect();
-
-                        let mut con_group = ConnectionGroup::new();
-
-                        for i in 0..3 {
-                            let mut var_name = st[i];
-                            let neg = var_name.contains("-");
-                            if neg {
-                                var_name = &var_name[1..];
-                            }
-
-                            let var_pos = self.add_variable(var_name.to_owned()).unwrap();
-                            let connection = Connection::new(var_pos, !neg);
-
-                            con_group.connections.push(connection);
-                        }
-
-                        self.connections.push(con_group);
-                    }
-                }
-            }
-        }
-        Some(())
-    }
-
-    // checks an individual connection
-    pub fn check_connection(&self, connection: &Connection) -> Option<bool> {
-        let var = self.get_variable(connection.var_pos)?;
-
-        if !var.is_set {
-            return Some(true);
-        }
-
-        Some(var.value == connection.val)
-    }
-
-    // checks a connection group
-    pub fn check_group(&mut self, group_pos: usize) -> Option<bool> {
-
+    pub fn load_cnf(&mut self, source: impl Read) -> Result<(), Box<dyn Error>> {
+        let buf_reader = BufReader::new(source);
         let mut check = false;
+        for maybe_line in buf_reader.lines() {
+            let line = maybe_line?;
+            if line.contains("p cnf") {
+                check = true;
+            } else if line.contains('%') {
+                return Ok(());
+            } else if check {
+                let line_parts: Vec<&str> = line.trim().split(' ').collect();
 
-        for i in 0..self.connections[group_pos].connections.len() {
-            check |= self.check_connection(&self.connections[group_pos].connections[i])?;
-            self.connections_checked += 1;
+                let mut group = ConnectionGroup::default();
 
-            if check {
-                return Some(check);
+                for i in 0..3 {
+                    let mut var_name = line_parts[i];
+                    let neg = var_name.contains('-');
+                    if neg {
+                        var_name = &var_name[1..];
+                    }
+
+                    let var_pos = self.add_variable(var_name.to_owned()).unwrap();
+                    let connection = Connection::new(var_pos, !neg);
+
+                    group.add_connection(connection);
+                }
+
+                self.connection_groups.push(group);
             }
         }
 
-        Some(check)
+        Ok(())
     }
 
     // solves the sat problem
-    pub fn solve(&mut self) -> Option<bool> {
+    pub fn solve(&mut self) -> SolveResult {
+        let mut connections_checked = 0;
+        let mut num_backtracks = 0;
 
         // initialize a vector to hold assigned values
-        let mut assigned = Vec::new();
-
-        // push the first value into the assigned values
-        assigned.push(self.variables[assigned.len()].pos);
+        let mut assigned = vec![Rc::clone(&self.variables[0])];
 
         // while we have at least one value to be assigned
-        while assigned.len() > 0 {
-
-            // intialize the check to true
-            let mut check = true;
-
+        while !assigned.is_empty() {
             // if everything is assigned then return true
             if assigned.len() >= self.variables.len() {
-                return Some(true);
+                return SolveResult {
+                    sat: false,
+                    connections_checked,
+                    num_backtracks,
+                };
             }
 
             // gets the variable to assigned
-            let cur = self.get_variable(*assigned.last()?)?;
+            let cur_rc = assigned.last().unwrap().clone();
+            {
+                let mut cur = cur_rc.borrow_mut();
 
-            // gets the variables position
-            let pos = cur.pos;
-            
-            // if the variable isn't set, set it to true
-            if !cur.is_set {
-                self.set_variable(pos, true);
-            }
-            // otherwise, if set to true, set to false
-            else if cur.value {
-                self.set_variable(pos, false);
-            }
-
-            // loop through connections and perform out checks
-            for con in 0..self.connections.len() {
-                if !self.check_group(con)? {
-                    check = false;
-                    break;
-                }
+                // if the variable isn't set, set it to true
+                // otherwise, if set to true, set to false
+                cur.maybe_value = match cur.maybe_value {
+                    None => Some(true),
+                    Some(true) => Some(false),
+                    Some(false) => unreachable!(),
+                };
             }
 
-            // if check is true, push the next variable to be assigned
+            let check = self.connection_groups.iter().all(|group| {
+                let group_check_result = group.check_group();
+                connections_checked += group_check_result.connections_checked;
+                group_check_result.success
+            });
+
             if check {
-                assigned.push(self.variables[assigned.len()].pos);
-            }
-            // else, if the value was false, go through and backtrack
-            else if !self.get_variable(pos)?.value { 
-
-                while !self.get_variable(*assigned.last()?)?.value {
-                    self.unset_variable(*assigned.last()?);
-                    assigned.pop();
-                    self.backtracks += 1;
+                // if check is true, push the next variable to be assigned
+                assigned.push(self.variables[assigned.len()].clone());
+            } else {
+                // else, backtrack
+                while matches!(
+                    assigned.last().and_then(|last| last.borrow().maybe_value),
+                    Some(false)
+                ) {
+                    let assigned_last = assigned.pop().unwrap();
+                    assigned_last.borrow_mut().maybe_value = None;
+                    num_backtracks += 1;
                 }
             }
-
         }
 
         // return false if unsat
-        Some(false)
-
+        SolveResult {
+            sat: false,
+            connections_checked,
+            num_backtracks,
+        }
     }
 
     // prints out the variables
     pub fn print_variables(&self) {
         for var in &self.variables {
-            println!("{} {}", var.name, var.value);
+            println!("{} {:?}", var.borrow().name, var.borrow().maybe_value);
         }
+    }
+
+    pub fn num_variables(&self) -> usize {
+        self.variables.len()
+    }
+
+    pub fn num_connections(&self) -> usize {
+        self.connection_groups
+            .iter()
+            .map(ConnectionGroup::num_connections)
+            .sum()
     }
 }
