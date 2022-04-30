@@ -218,20 +218,13 @@ impl Solver {
         let mut literal_sign: bool;
         let mut var_score = 0;
 
-        for i in 0..self.connection_groups.len() {
-            let group = self.connection_groups.get(i).unwrap();
+        for i in 0..self.variable_connections[cur.pos].len() {
+            let group_index = self.variable_connections[cur.pos][i];
+            let group = self.connection_groups.get(group_index).unwrap();
             let or_check = group.connections.iter().any(|con| {
                 connections_checked += 1;
                 self.check_connection_not_null(*con as usize).unwrap()
             });
-
-        // for i in 0..self.variable_connections[cur.pos].len() {
-        //     let group_index = self.variable_connections[cur.pos][i];
-        //     let group = self.connection_groups.get(group_index).unwrap();
-        //     let or_check = group.connections.iter().any(|con| {
-        //         connections_checked += 1;
-        //         self.check_connection_not_null(*con as usize).unwrap()
-        //     });
 
             if !or_check {
                 for connection in group.connections.iter() {
