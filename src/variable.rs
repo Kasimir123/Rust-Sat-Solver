@@ -2,7 +2,7 @@ pub struct Variable {
     pub name: String,
     pub value: bool,
     pub is_set: bool,
-    pub pos: usize
+    pub pos: usize,
 }
 
 impl Variable {
@@ -11,7 +11,7 @@ impl Variable {
             name: name,
             value: true,
             is_set: false,
-            pos: !0
+            pos: !0,
         }
     }
 }
