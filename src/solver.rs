@@ -2,7 +2,6 @@
 use crate::connections::{Connection, ConnectionGroup};
 use crate::variable::Variable;
 
-use std::cell::RefCell;
 use std::error::Error;
 // import required imports
 use std::io::{BufRead, BufReader, Read};
@@ -17,7 +16,7 @@ pub struct SolveResult {
 #[derive(Default)]
 pub struct Solver {
     // variables in the solver
-    variables: Vec<Rc<RefCell<Variable>>>,
+    variables: Vec<Rc<Variable>>,
 
     // connections in the solver
     connection_groups: Vec<ConnectionGroup>,
@@ -34,14 +33,14 @@ impl Solver {
 
     // adds a variable to the solver, if the variable exists then return its position,
     // otherwise add it and return the position
-    pub fn add_variable(&mut self, name: String) -> Result<Rc<RefCell<Variable>>, Box<dyn Error>> {
+    pub fn add_variable(&mut self, name: String) -> Result<Rc<Variable>, Box<dyn Error>> {
         for variable in self.variables.iter() {
-            if variable.borrow().name == name {
+            if variable.name == name {
                 return Ok(Rc::clone(variable));
             }
         }
 
-        let new_var = Rc::new(RefCell::new(Variable::new(name)));
+        let new_var = Rc::new(Variable::new(name));
 
         self.variables.push(Rc::clone(&new_var));
 
@@ -103,18 +102,16 @@ impl Solver {
             }
 
             // gets the variable to assigned
-            let cur_rc = assigned.last().unwrap().clone();
-            {
-                let mut cur = cur_rc.borrow_mut();
+            let cur = assigned.last().unwrap().clone();
 
-                // if the variable isn't set, set it to true
-                // otherwise, if set to true, set to false
-                cur.maybe_value = match cur.maybe_value {
-                    None => Some(true),
-                    Some(true) => Some(false),
-                    Some(false) => unreachable!(),
-                };
-            }
+            // if the variable isn't set, set it to true
+            // otherwise, if set to true, set to false
+            let new_val = match cur.maybe_value.get() {
+                None => Some(true),
+                Some(true) => Some(false),
+                Some(false) => unreachable!(),
+            };
+            cur.maybe_value.set(new_val);
 
             let check = self.connection_groups.iter().all(|group| {
                 let group_check_result = group.check_group();
@@ -128,11 +125,11 @@ impl Solver {
             } else {
                 // else, backtrack
                 while matches!(
-                    assigned.last().and_then(|last| last.borrow().maybe_value),
+                    assigned.last().and_then(|last| last.maybe_value.get()),
                     Some(false)
                 ) {
                     let assigned_last = assigned.pop().unwrap();
-                    assigned_last.borrow_mut().maybe_value = None;
+                    assigned_last.maybe_value.set(None);
                     num_backtracks += 1;
                 }
             }
@@ -149,7 +146,7 @@ impl Solver {
     // prints out the variables
     pub fn print_variables(&self) {
         for var in &self.variables {
-            println!("{} {:?}", var.borrow().name, var.borrow().maybe_value);
+            println!("{} {:?}", var.name, var.maybe_value.get());
         }
     }
 

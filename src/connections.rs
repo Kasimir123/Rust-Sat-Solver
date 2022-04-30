@@ -1,15 +1,15 @@
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 use crate::variable::Variable;
 
 #[derive(Debug)]
 pub struct Connection {
     val: bool,
-    variable: Rc<RefCell<Variable>>,
+    variable: Rc<Variable>,
 }
 
 impl Connection {
-    pub fn new(variable: Rc<RefCell<Variable>>, val: bool) -> Self {
+    pub fn new(variable: Rc<Variable>, val: bool) -> Self {
         Connection { val, variable }
     }
 }
@@ -40,8 +40,8 @@ impl ConnectionGroup {
 
             if connection
                 .variable
-                .borrow()
                 .maybe_value
+                .get()
                 .map_or(true, |variable_value| variable_value == connection.val)
             {
                 return GroupCheckResult {
