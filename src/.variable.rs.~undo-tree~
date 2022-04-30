@@ -1,0 +1,13 @@
+(undo-tree-save-format-version . 1)
+"99717aa33bcf486596f8071880c0490327df4990"
+[nil nil nil nil (25197 39519 295579 600000) 0 nil]
+([nil nil ((73 . 102) (t 25197 36403 611667 200000)) nil (25197 39519 295577 400000) 0 nil])
+([nil nil ((#("value" 0 5 (fontified t face (:foreground "#9999d41cffff") color-identifiers:fontified t)) . 82) (undo-tree-id2 . -5) (undo-tree-id3 . -2) (undo-tree-id4 . -2) (undo-tree-id5 . -5) 84) nil (25197 39519 295575 0) 0 nil])
+([nil nil ((82 . 91)) nil (25197 39519 295569 100000) 0 nil])
+([nil nil ((#("=" 0 1 (fontified t)) . -90) (undo-tree-id0 . -1) (undo-tree-id1 . -1) 91) nil (25197 39519 295566 600000) 0 nil])
+([nil nil ((90 . 94)) nil (25197 39519 295536 700000) 0 nil])
+([nil nil ((94 . 101)) nil (25197 39519 295530 300000) 0 nil])
+([nil nil ((256 . 281) (t 25197 39519 291667 200000)) nil (25197 39535 240889 900000) 0 nil])
+([nil nil ((#("value" 0 5 (fontified t face (:foreground "#9999d41cffff") color-identifiers:fontified t)) . 269) (undo-tree-id6 . -5) (undo-tree-id7 . -5) (undo-tree-id8 . -5)) nil (25197 39535 240887 0) 0 nil])
+([nil current ((nil rear-nonsticky nil 287 . 288) (nil fontified nil 269 . 288) (269 . 288)) nil (25197 39535 240869 400000) 0 nil])
+nil

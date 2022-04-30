@@ -298,8 +298,6 @@ impl Solver {
 
         assigned.push(next_cur.cur.unwrap());
 
-        let mut cur_value_switch = 1;
-
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
             // if everything is assigned then return true
@@ -320,9 +318,9 @@ impl Solver {
             let pos = cur.pos;
             
             let new_val = match cur_value_switch {
-                1 => Some(self.get_lcv(cur)),
-                2 => Some(cur.value),
-                3 => unreachable!(),
+                0 => Some(self.get_lcv(cur)),
+                1 => Some(!cur.value.unwrap()),
+                2 => unreachable!(),
             };
 
             self.variables[pos].value = new_val;
