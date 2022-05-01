@@ -18,6 +18,8 @@ pub struct CurResult {
     pub set: bool,
     pub cur: Option<usize>,
     pub connections_checked: usize,
+    pub is_uc: bool,
+    pub literal_sign: Option<bool>,
 }
 
 #[derive(Default)]
@@ -148,6 +150,8 @@ impl Solver {
         let mut set = false;
         let mut min_con: Option<usize> = None;
         let mut min_val: Option<usize> = None;
+        let mut literal_sign: Option<bool> = None;
+        let mut is_uc: bool = false;
 
         for i in 0..self.connection_groups.len() {
             let group = self.connection_groups.get(i).unwrap();
@@ -179,6 +183,20 @@ impl Solver {
                 }
 
                 if min_val.unwrap() == 1 {
+                    for connection in group.connections.iter() {
+                        if self
+                            .variables
+                            .get(self.connections.get(*connection).unwrap().var_pos)
+                            .unwrap()
+                            .value
+                            == None
+                        {
+                            literal_sign = Some(
+                                self.connections.get(*connection)
+                                    .unwrap().val
+                            );
+                        }
+                    }
                     break;
                 }
             }
@@ -197,10 +215,13 @@ impl Solver {
                     .get(self.connections.get(*con).unwrap().var_pos)
                     .unwrap();
                 if var.value == None {
+                    is_uc = min_val.unwrap() == 1;
                     return CurResult {
                         set: true,
                         cur: Some(var.pos),
                         connections_checked,
+                        is_uc,
+                        literal_sign,
                     };
                 }
             }
@@ -209,6 +230,8 @@ impl Solver {
             set: false,
             cur: None,
             connections_checked,
+            is_uc,
+            literal_sign,
         };
     }
 
@@ -299,29 +322,33 @@ impl Solver {
             // gets the variables position
             let pos = cur.pos;
 
-            // check to see if lcv has been tried
-            match var_exhausted.get(assigned_index) {
-                Some(&None) => {
-                    lcv_status = Some(false);
-                    var_exhausted[assigned_index] = Some(false);
-                },
-                Some(Some(false)) => {
-                    lcv_status = Some(true);
-                    var_exhausted[assigned_index] = Some(true);
-                },
-                Some(Some(true)) => {
-                    lcv_status = None;
-                    var_exhausted[assigned_index] = None;
-                },
-                None => unreachable!(),
+            let mut new_val = None;
+            if !next_cur.is_uc {
+                // check to see if lcv has been tried
+                match var_exhausted.get(assigned_index) {
+                    Some(&None) => {
+                        lcv_status = Some(false);
+                        var_exhausted[assigned_index] = Some(false);
+                    },
+                    Some(Some(false)) => {
+                        lcv_status = Some(true);
+                        var_exhausted[assigned_index] = Some(true);
+                    },
+                    Some(Some(true)) => {
+                        lcv_status = None;
+                        var_exhausted[assigned_index] = None;
+                    },
+                    None => unreachable!(),
+                }
+                new_val = match lcv_status {
+                    Some(false) => Some(self.get_lcv(cur)),
+                    Some(true) => Some(!cur.value.unwrap()),
+                    None => unreachable!(),
+                };
+            } else {
+                new_val = next_cur.literal_sign;
             }
-
-            let new_val = match lcv_status {
-                Some(false) => Some(self.get_lcv(cur)),
-                Some(true) => Some(!cur.value.unwrap()),
-                None => unreachable!(),
-            };
-
+ 
             self.variables[pos].value = new_val;
 
             // loop through connections and perform out checks
