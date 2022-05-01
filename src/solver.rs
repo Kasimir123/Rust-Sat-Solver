@@ -292,7 +292,7 @@ impl Solver {
         let mut assigned = Vec::new();
 
         let mut unsat_groups: BTreeSet<usize> = BTreeSet::new();
-        let mut sat_groups: BTreeSet<usize> = BTreeSet::new();
+        // let mut sat_groups: BTreeSet<usize> = BTreeSet::new();
         let mut groups_sat_at_assignment: Vec<Vec<&usize>> = Vec::new();
         for _i in 0..self.variables.len() {
             groups_sat_at_assignment.push(Vec::new());
@@ -466,8 +466,8 @@ impl Solver {
                 for i in 0..groups_sat_at_assignment[assigned.len() - 1].len() {
                     unsat_groups
                         .remove(groups_sat_at_assignment[assigned.len() - 1][i]);
-                    sat_groups
-                        .insert(*groups_sat_at_assignment[assigned.len() - 1][i]);
+                    // sat_groups
+                    //     .insert(*groups_sat_at_assignment[assigned.len() - 1][i]);
                 }
 
 
@@ -548,8 +548,8 @@ impl Solver {
                         // println!("group index to be switched: {}", groups_sat_at_assignment[assigned.len() - 1][i]);
                         unsat_groups
                             .insert(*groups_sat_at_assignment[assigned.len() - 2][i]);
-                        sat_groups
-                            .remove(groups_sat_at_assignment[assigned.len() - 2][i]);
+                        // sat_groups
+                        //     .remove(groups_sat_at_assignment[assigned.len() - 2][i]);
                     }
 
                     let assigned_last = assigned.pop().unwrap();
