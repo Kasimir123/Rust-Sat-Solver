@@ -451,24 +451,9 @@ impl Solver {
         }
     }
 
-    pub fn final_check(&self) -> bool {
+    pub fn final_check(&mut self) -> bool {
         println!("{} {}", self.connection_groups.len(), self.variables.len());
-        let check = self
-                .connection_groups
-                .iter()
-                .all(|group| {
 
-                    let or_check = group.connections.iter().any(|con| {
-                        self.check_connection(*con as usize).unwrap()
-                    });
-
-                    or_check
-                });
-        check
-    }
-
-    // prints out the variables
-    pub fn print_variables(&mut self) {
         for i in 0..self.variables.len() {
             let cur = self.variables.get(i).unwrap();
             let new_val = match cur.value {
@@ -478,6 +463,24 @@ impl Solver {
             };
             self.variables[i].value = new_val;
         }
+
+        let check = self
+                .connection_groups
+                .iter()
+                .all(|group| {
+
+                    let or_check = group.connections.iter().any(|con| {
+                        self.check_connection_not_null(*con as usize).unwrap()
+                    });
+
+                    or_check
+                });
+        check
+    }
+
+    // prints out the variables
+    pub fn print_variables(&self) {
+        
         for var in &self.variables {
             println!("{} {}", var.name, var.value.unwrap());
         }
