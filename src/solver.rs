@@ -148,10 +148,7 @@ impl Solver {
         let mut literal_sign: Option<bool> = None;
         let mut is_uc: bool = false;
 
-        // println!("{}", unsat_groups.len());
-
         for i in unsat_groups.iter() {
-            // println!("{}", i);
             let group = self.connection_groups.get(*i).unwrap();
 
             let mut count = 0;
@@ -193,7 +190,6 @@ impl Solver {
                 break;
             }
         }
-
 
         if set {
             for con in self
@@ -274,7 +270,6 @@ impl Solver {
         let mut assigned = Vec::new();
 
         let mut unsat_groups: BTreeSet<usize> = BTreeSet::new();
-        // let mut sat_groups: BTreeSet<usize> = BTreeSet::new();
         let mut groups_sat_at_assignment: Vec<Vec<&usize>> = Vec::new();
         for _i in 0..self.variables.len() {
             groups_sat_at_assignment.push(Vec::new());
