@@ -3,7 +3,6 @@ use crate::connections::{Connection, ConnectionGroup};
 use crate::variable::Variable;
 
 // import required imports
-use std::collections::HashMap;
 use std::error::Error;
 
 use std::io::{BufRead, BufReader, Read};
@@ -135,7 +134,12 @@ impl Solver {
 
         let var = self.variables.get(connection.var_pos)?;
 
-        if var.value == None {
+        let ret = match var.value {
+            None => Some(false),
+            _ => Some(true)
+        };
+
+        if ret? == false {
             return Some(false);
         }
 
@@ -149,12 +153,14 @@ impl Solver {
         let mut min_con: Option<usize> = None;
         let mut min_val: Option<usize> = None;
 
+
         for i in 0..self.connection_groups.len() {
             let group = self.connection_groups.get(i).unwrap();
             let or_check = group.connections.iter().any(|con| {
                 connections_checked += 1;
                 self.check_connection_not_null(*con as usize).unwrap()
             });
+
 
             if !or_check {
                 let mut count = 0;
@@ -234,17 +240,9 @@ impl Solver {
 
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
-            // if everything is assigned then return true
-            if assigned.len() >= self.variables.len() {
-                return SolveResult {
-                    sat: true,
-                    connections_checked: self.connections_checked as u64,
-                    num_backtracks: self.backtracks as u64,
-                };
-            }
 
             // gets the variable to assigned
-            let mut cur = self.variables.get(*assigned.last().unwrap()).unwrap();
+            let cur = self.variables.get(*assigned.last().unwrap()).unwrap();
 
             let mut connections_checked = 0;
 
@@ -281,6 +279,7 @@ impl Solver {
 
             // if check is true, push the next variable to be assigned
             if check {
+
                 let next_cur = self.get_next_cur();
 
                 self.connections_checked += next_cur.connections_checked;
@@ -314,6 +313,32 @@ impl Solver {
             connections_checked: self.connections_checked as u64,
             num_backtracks: self.backtracks as u64,
         }
+    }
+    pub fn final_check(&mut self) -> bool {
+        println!("{} {}", self.connection_groups.len(), self.variables.len());
+
+        for i in 0..self.variables.len() {
+            let cur = self.variables.get(i).unwrap();
+            let new_val = match cur.value {
+                    None => Some(true),
+                    Some(true) => Some(true),
+                    Some(false) => Some(false),
+            };
+            self.variables[i].value = new_val;
+        }
+
+        let check = self
+                .connection_groups
+                .iter()
+                .all(|group| {
+
+                    let or_check = group.connections.iter().any(|con| {
+                        self.check_connection_not_null(*con as usize).unwrap()
+                    });
+
+                    or_check
+                });
+        check
     }
 
     // prints out the variables

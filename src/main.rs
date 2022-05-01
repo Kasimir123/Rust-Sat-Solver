@@ -15,12 +15,13 @@ fn main() {
     // initialize the solver
     let mut solver = Solver::new();
 
-    // let f = "./benchmark-cases/uf20.cnf";
+    // let f = "./benchmark-cases/uf3.cnf";
+    let f = "./benchmark-cases/uf20.cnf";
     // let f = "./benchmark-cases/uf50.cnf";
     // let f = "./benchmark-cases/uf75.cnf";
     // let f = "./benchmark-cases/uf100.cnf";
     // let f = "./benchmark-cases/uf125.cnf";
-    let f = "./benchmark-cases/uf150.cnf";
+    // let f = "./benchmark-cases/uf150.cnf";
     // let f = "./benchmark-cases/uf175.cnf";
 
     let benchmark_file = File::open(f).expect("failed to open benchmark file");
@@ -39,7 +40,9 @@ fn main() {
     // get the elapsed time
     let elapsed = start.elapsed().as_secs_f64();
 
-    println!("{:?}", solve_result.sat);
+
+    println!("primary check: {:?}", solve_result.sat);
+    println!("user-error check: {:?}", solver.final_check());
 
     // print out stats
     println!("Time:                     {}", elapsed);
