@@ -3,7 +3,7 @@ use crate::connections::{Connection, ConnectionGroup};
 use crate::variable::Variable;
 
 // import required imports
-// use std::process;
+use std::process;
 use std::collections::BTreeSet;
 use std::error::Error;
 
@@ -119,15 +119,19 @@ impl Solver {
         let connection = self.connections.get(connection)?;
 
         let var = self.variables.get(connection.var_pos)?;
-
-        let ret = match var.value {
-            None => Some(true),
-            _ => Some(false),
-        };
-
-        if ret? {
+        
+        if var.value.is_none() {
             return Some(true);
         }
+
+        // let ret = match var.value {
+        //     None => Some(true),
+        //     _ => Some(false),
+        // };
+
+        // if ret? {
+        //     return Some(true);
+        // }
 
         Some(var.value? == connection.val)
     }
@@ -288,6 +292,7 @@ impl Solver {
         let mut assigned = Vec::new();
 
         let mut unsat_groups: BTreeSet<usize> = BTreeSet::new();
+        let mut sat_groups: BTreeSet<usize> = BTreeSet::new();
         let mut groups_sat_at_assignment: Vec<Vec<&usize>> = Vec::new();
         for _i in 0..self.variables.len() {
             groups_sat_at_assignment.push(Vec::new());
@@ -320,16 +325,32 @@ impl Solver {
 
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
-            // println!("{}", assigned_index);
 
-            // if everything is assigned then return true
-            if assigned.len() >= self.variables.len() {
-                return SolveResult {
-                    sat: true,
-                    connections_checked: self.connections_checked as u64,
-                    num_backtracks: self.backtracks as u64,
-                };
-            }
+
+
+
+            
+            // remove after working
+            // for group_index in &sat_groups {
+            //     let group = self.connection_groups.get(*group_index).unwrap();
+            //     let sat_check = group.connections.iter().any(|con| {
+            //         self.check_connection_not_null(*con as usize).unwrap()
+            //     });
+            //     if !sat_check {
+            //         for con in self.connection_groups[*group_index].connections.iter() {
+            //             let actual_con: &Connection = self.connections.get(*con).unwrap();
+            //             // println!("{} {} {}", actual_con.val, self.variables[actual_con.var_pos].name, self.variables[actual_con.var_pos].value.unwrap());
+            //         }
+            //         println!("top {}", assigned.len() - 1);
+            //         // process::exit(1);
+            //     }
+            // }
+
+
+
+            
+
+
 
             // gets the variable to assigned
             let cur = self.variables.get(*assigned.last().unwrap()).unwrap();
@@ -362,8 +383,21 @@ impl Solver {
                 var_exhausted[assigned.len() - 1] = Some(true);
                 new_val = next_cur.literal_sign;
             }
- 
+
+            // if assigned.len() - 1 == 16 {
+            //     match self.variables[pos].value {
+            //         None => {
+            //             println!("before: None")
+            //         },
+            //         _ => {
+            //             println!("before {}", self.variables[pos].value.unwrap());
+            //         }
+            //     }
+            // }
             self.variables[pos].value = new_val;
+            // if assigned.len() - 1 == 16 {
+            //     println!("after {}", self.variables[pos].value.unwrap());
+            // }
 
             // reset the possibly satisfied groups for this assignment
             groups_sat_at_assignment[assigned.len() - 1].clear();
@@ -400,12 +434,63 @@ impl Solver {
 
             self.connections_checked += connections_checked;
 
+
+
+
+
+            // remove after working
+            // for group_index in &sat_groups {
+            //     let group = self.connection_groups.get(*group_index).unwrap();
+            //     let sat_check = group.connections.iter().any(|con| {
+            //         self.check_connection_not_null(*con as usize).unwrap()
+            //     });
+            //     if !sat_check {
+            //         for con in self.connection_groups[*group_index].connections.iter() {
+            //             let actual_con: &Connection = self.connections.get(*con).unwrap();
+            //             // println!("{} {} {}", actual_con.val, self.variables[actual_con.var_pos].name, self.variables[actual_con.var_pos].value.unwrap());
+            //         }
+            //         println!("before {}", assigned.len() - 1);
+                    
+            //         // if assigned.len() - 1 == 16 {
+            //         //     println!("{}", new_val.unwrap());
+            //         // }
+            //         // process::exit(1);
+            //     }
+            // }
+
+
+            
+
             // if check is true, push the next variable to be assigned
             if check {
                 for i in 0..groups_sat_at_assignment[assigned.len() - 1].len() {
                     unsat_groups
                         .remove(groups_sat_at_assignment[assigned.len() - 1][i]);
+                    sat_groups
+                        .insert(*groups_sat_at_assignment[assigned.len() - 1][i]);
                 }
+
+
+
+
+                
+                // remove after working
+                // for group_index in &sat_groups {
+                //     let group = self.connection_groups.get(*group_index).unwrap();
+                //     let sat_check = group.connections.iter().any(|con| {
+                //         self.check_connection_not_null(*con as usize).unwrap()
+                //     });
+                //     if !sat_check {
+                //         for con in self.connection_groups[*group_index].connections.iter() {
+                //             let actual_con: &Connection = self.connections.get(*con).unwrap();
+                //             // println!("{} {} {}", actual_con.val, self.variables[actual_con.var_pos].name, self.variables[actual_con.var_pos].value.unwrap());
+                //         }
+                //         println!("just inserted {}", assigned.len() - 1);
+                //         // process::exit(1);
+                //     }
+                // }
+
+                
                 
                 let next_cur = self.get_next_cur(&unsat_groups);
 
@@ -428,15 +513,71 @@ impl Solver {
                     Some(Some(true))
                         
                 ) {
+
+
+                   
+                    // remove after working
+                    // for group_index in &sat_groups {
+                    //     let group = self.connection_groups.get(*group_index).unwrap();
+                    //     let sat_check = group.connections.iter().any(|con| {
+                    //         self.check_connection_not_null(*con as usize).unwrap()
+                    //     });
+                    //     if !sat_check {
+                    //         for con in self.connection_groups[*group_index].connections.iter() {
+                    //             let actual_con: &Connection = self.connections.get(*con).unwrap();
+                    //             // println!("{} {} {}", actual_con.val, self.variables[actual_con.var_pos].name, self.variables[actual_con.var_pos].value.unwrap());
+                    //         }
+                    //         println!("above {}", assigned.len() - 1);
+                    //         println!("{}", group_index);
+                    //         // process::exit(1);
+                    //     }
+                    // }
+
+                    
                     var_exhausted[assigned.len() - 1] = None;
-                    for i in 0..groups_sat_at_assignment[assigned.len() - 1].len() {
+
+                    // println!("popping: {}", (assigned.len() - 1));
+                    // for i in 14..19 {
+                    //     println!("printing groups sat for assignment: {}", i);
+                    //     for j in 0..groups_sat_at_assignment[i].len() {
+                    //         println!("{}", groups_sat_at_assignment[i][j])
+                    //     }
+                    // }
+                
+                    for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
+                        // println!("group index to be switched: {}", groups_sat_at_assignment[assigned.len() - 1][i]);
                         unsat_groups
-                            .insert(*groups_sat_at_assignment[assigned.len() - 1][i]);
+                            .insert(*groups_sat_at_assignment[assigned.len() - 2][i]);
+                        sat_groups
+                            .remove(groups_sat_at_assignment[assigned.len() - 2][i]);
                     }
 
                     let assigned_last = assigned.pop().unwrap();
+
+
+
+                    // remove after working
+                    // for group_index in &sat_groups {
+                    //     let group = self.connection_groups.get(*group_index).unwrap();
+                    //     let sat_check = group.connections.iter().any(|con| {
+                    //         self.check_connection_not_null(*con as usize).unwrap()
+                    //     });
+                    //     if !sat_check {
+                    //         for con in self.connection_groups[*group_index].connections.iter() {
+                    //             let actual_con: &Connection = self.connections.get(*con).unwrap();
+                    //             // println!("{} {} {}", actual_con.val, self.variables[actual_con.var_pos].name, self.variables[actual_con.var_pos].value.unwrap());
+                    //         }
+                    //         println!("below {}", assigned.len() - 1);
+                    //         process::exit(1);
+                    //     }
+                    // }
+
+
+                    
                     self.variables[assigned_last].value = None;
+                    // println!("{}", assigned.len());
                     self.backtracks += 1;
+                    // println!("backtracking after exhausting {}", assigned.len());
                 }
             }
         }
