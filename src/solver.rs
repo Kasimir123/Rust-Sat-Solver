@@ -3,8 +3,8 @@ use crate::connections::{Connection, ConnectionGroup};
 use crate::variable::Variable;
 
 // import required imports
-use std::collections::HashMap;
-use std::collections::HashSet;
+// use std::process;
+use std::collections::BTreeSet;
 use std::error::Error;
 
 use std::io::{BufRead, BufReader, Read};
@@ -138,15 +138,17 @@ impl Solver {
 
         let var = self.variables.get(connection.var_pos)?;
 
-        if var.value == None {
+        // if var.value == None {
+        //     return Some(false);
+        // }
+        if var.value.is_none() {
             return Some(false);
         }
 
         Some(var.value? == connection.val)
     }
 
-    pub fn get_next_cur(&self, unsat_clauses: &HashSet<usize>) -> CurResult {
-        let mut connections_checked = 0;
+    pub fn get_next_cur(&self, unsat_groups: &BTreeSet<usize>) -> CurResult {
 
         let mut set = false;
         let mut min_con: Option<usize> = None;
@@ -154,7 +156,10 @@ impl Solver {
         let mut literal_sign: Option<bool> = None;
         let mut is_uc: bool = false;
 
-        for i in unsat_clauses {
+        // println!("{}", unsat_groups.len());
+
+        for i in unsat_groups.iter() {
+            // println!("{}", i);
             let group = self.connection_groups.get(*i).unwrap();
             // let or_check = group.connections.iter().any(|con| {
             //     connections_checked += 1;
@@ -202,6 +207,7 @@ impl Solver {
             }
             // }
         }
+        // process::exit(0x0100);
 
         if set {
             for con in self
@@ -220,7 +226,7 @@ impl Solver {
                     return CurResult {
                         set: true,
                         cur: Some(var.pos),
-                        connections_checked,
+                        connections_checked: 0,
                         is_uc,
                         literal_sign,
                     };
@@ -230,7 +236,7 @@ impl Solver {
         return CurResult {
             set: false,
             cur: None,
-            connections_checked,
+            connections_checked: 0,
             is_uc,
             literal_sign,
         };
@@ -281,19 +287,17 @@ impl Solver {
         // initialize a vector to hold assigned values
         let mut assigned = Vec::new();
 
-        // initializing hash set to keep track of unsatisfied clauses
-        let mut unsat_clauses: HashSet<usize> = HashSet::new();
-        // initializing vector vector to keep track of clauses
-        // satisfied at each assignment
-        let mut clauses_sat_at_assignment: Vec<Vec<&usize>> = Vec::new();
-        for i in 0..self.variables.len() {
-            unsat_clauses.insert(i);
-            // the sub-vector of newly satisfied clauses as each assignment
-            clauses_sat_at_assignment.push(Vec::new());
+        let mut unsat_groups: BTreeSet<usize> = BTreeSet::new();
+        let mut groups_sat_at_assignment: Vec<Vec<&usize>> = Vec::new();
+        for _i in 0..self.variables.len() {
+            groups_sat_at_assignment.push(Vec::new());
+        }
+        for i in 0..self.connection_groups.len() {
+            unsat_groups.insert(i);
         }
 
         // push the first value into the assigned values
-        let next_cur = self.get_next_cur(&unsat_clauses);
+        let next_cur = self.get_next_cur(&unsat_groups);
 
         self.connections_checked += next_cur.connections_checked;
 
@@ -309,14 +313,15 @@ impl Solver {
 
         // initializing vector to keep track of lcv value assignments
         let mut var_exhausted: Vec<Option<bool>> = Vec::new();
-        for i in 00..self.variables.len() {
+        for _i in 0..self.variables.len() {
             var_exhausted.push(None)
         }
-        let mut assigned_index = 0;
         let mut lcv_status: Option<bool>;
 
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
+            // println!("{}", assigned_index);
+
             // if everything is assigned then return true
             if assigned.len() >= self.variables.len() {
                 return SolveResult {
@@ -327,47 +332,43 @@ impl Solver {
             }
 
             // gets the variable to assigned
-            let mut cur = self.variables.get(*assigned.last().unwrap()).unwrap();
+            let cur = self.variables.get(*assigned.last().unwrap()).unwrap();
 
             let mut connections_checked = 0;
 
             // gets the variables position
             let pos = cur.pos;
 
-            let mut new_val = None;
+            let new_val: Option<bool>;
             if !next_cur.is_uc {
                 // check to see if lcv has been tried
-                match var_exhausted.get(assigned_index) {
+                match var_exhausted.get(assigned.len() - 1) {
                     Some(&None) => {
                         lcv_status = Some(false);
-                        var_exhausted[assigned_index] = Some(false);
+                        var_exhausted[assigned.len() - 1] = Some(false);
                     },
                     Some(Some(false)) => {
                         lcv_status = Some(true);
-                        var_exhausted[assigned_index] = Some(true);
+                        var_exhausted[assigned.len() - 1] = Some(true);
                     },
-                    Some(Some(true)) => {
-                        lcv_status = None;
-                        var_exhausted[assigned_index] = None;
-                    },
-                    None => unreachable!(),
+                    _ => unreachable!(),
                 }
                 new_val = match lcv_status {
                     Some(false) => Some(self.get_lcv(cur)),
                     Some(true) => Some(!cur.value.unwrap()),
-                    None => unreachable!(),
+                    _ => unreachable!(),
                 };
             } else {
+                var_exhausted[assigned.len() - 1] = Some(true);
                 new_val = next_cur.literal_sign;
             }
  
             self.variables[pos].value = new_val;
 
-            // loop through connections and perform out checks
+            // reset the possibly satisfied groups for this assignment
+            groups_sat_at_assignment[assigned.len() - 1].clear();
 
-            // consider which clauses might be newly satisfied
-            // during the following conflict-check
-            let mut newly_satisfied_clauses: Vec<&usize> = Vec::new();
+            // loop through connections and perform out checks
             
             let check = self
                 .variable_connections
@@ -389,26 +390,24 @@ impl Solver {
                         self.check_connection_not_null(*con as usize).unwrap()
                     });
 
-                    if sat_check && unsat_clauses.contains(group_index) {
-                        newly_satisfied_clauses.push(group_index);
-                        unsat_clauses.remove(group_index);
+                    if sat_check && unsat_groups.contains(group_index) {
+                        groups_sat_at_assignment[assigned.len() - 1]
+                            .push(group_index);
                     }
 
                     or_check
                 });
 
-            // remember which clauses were satisfied at this assignment
-            // if the assignment didn't cause a conflict
-            if check {
-                clauses_sat_at_assignment[assigned_index]
-                    = newly_satisfied_clauses;
-            }
-
             self.connections_checked += connections_checked;
 
             // if check is true, push the next variable to be assigned
             if check {
-                let next_cur = self.get_next_cur(&unsat_clauses);
+                for i in 0..groups_sat_at_assignment[assigned.len() - 1].len() {
+                    unsat_groups
+                        .remove(groups_sat_at_assignment[assigned.len() - 1][i]);
+                }
+                
+                let next_cur = self.get_next_cur(&unsat_groups);
 
                 self.connections_checked += next_cur.connections_checked;
 
@@ -421,24 +420,23 @@ impl Solver {
                 }
 
                 assigned.push(next_cur.cur.unwrap());
-                assigned_index += 1;
             }
             // else, if the value was false, go through and backtrack
             else {
-                for i in 0..clauses_sat_at_assignment[assigned_index].len() {
-                    unsat_clauses
-                        .insert(*clauses_sat_at_assignment[assigned_index][i]);
-                }
-                clauses_sat_at_assignment[assigned_index].truncate(0);
                 while matches!(
-                    var_exhausted.get(assigned_index),
+                    var_exhausted.get(assigned.len() - 1),
                     Some(Some(true))
+                        
                 ) {
+                    var_exhausted[assigned.len() - 1] = None;
+                    for i in 0..groups_sat_at_assignment[assigned.len() - 1].len() {
+                        unsat_groups
+                            .insert(*groups_sat_at_assignment[assigned.len() - 1][i]);
+                    }
+
                     let assigned_last = assigned.pop().unwrap();
                     self.variables[assigned_last].value = None;
                     self.backtracks += 1;
-                    var_exhausted[assigned_index] = None;
-                    assigned_index -= 1;
                 }
             }
         }
@@ -452,7 +450,7 @@ impl Solver {
     }
 
     pub fn final_check(&mut self) -> bool {
-        println!("{} {}", self.connection_groups.len(), self.variables.len());
+        // println!("{} {}", self.connection_groups.len(), self.variables.len());
 
         for i in 0..self.variables.len() {
             let cur = self.variables.get(i).unwrap();
@@ -464,6 +462,8 @@ impl Solver {
             self.variables[i].value = new_val;
         }
 
+        let mut connection_group_index = 0;
+
         let check = self
                 .connection_groups
                 .iter()
@@ -473,8 +473,24 @@ impl Solver {
                         self.check_connection_not_null(*con as usize).unwrap()
                     });
 
+                    // if !or_check {
+                    //     println!("{}", connection_group_index);
+                    //     for con in group.connections.iter() {
+                    //         let actual_con: &Connection = self.connections.get(*con).unwrap();
+                    //         println!("{} {} {}", actual_con.val, self.variables[actual_con.var_pos].name, self.variables[actual_con.var_pos].value.unwrap());
+                    //     }
+                    // }
+
+                    connection_group_index += 1;
+
                     or_check
                 });
+     
+        // for con in self.connection_groups[19].connections.iter() {
+        //     let actual_con: &Connection = self.connections.get(*con).unwrap();
+        //     println!("{} {} {}", actual_con.val, self.variables[actual_con.var_pos].name, self.variables[actual_con.var_pos].value.unwrap());
+        // }
+        
         check
     }
 
