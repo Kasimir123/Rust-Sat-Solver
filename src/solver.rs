@@ -272,8 +272,11 @@ impl Solver {
 
         assigned.push(next_cur.cur.unwrap());
 
-        // initializing map to keep track of value assignments
-        let mut var_exhausted: HashMap<usize, bool> = HashMap::new();
+        // initializing vector to keep track of value assignments
+        let mut var_exhausted: Vec<Option<bool>> = Vec::new();
+        for i in 00..self.variables.len() {
+            var_exhausted.push(None)
+        }
         let mut assigned_index = 0;
         let mut lcv_status: Option<bool>;
 
@@ -297,14 +300,20 @@ impl Solver {
             let pos = cur.pos;
 
             // check to see if lcv has been tried
-            if !var_exhausted.contains_key(&assigned_index) {
-                lcv_status = Some(false);
-                var_exhausted.insert(assigned_index, false);
-            } else if !var_exhausted.get(&assigned_index).unwrap() {
-                lcv_status = Some(true);
-                var_exhausted.insert(assigned_index, true);
-            } else {
-                lcv_status = None;
+            match var_exhausted.get(assigned_index) {
+                Some(&None) => {
+                    lcv_status = Some(false);
+                    var_exhausted[assigned_index] = Some(false);
+                },
+                Some(Some(false)) => {
+                    lcv_status = Some(true);
+                    var_exhausted[assigned_index] = Some(true);
+                },
+                Some(Some(true)) => {
+                    lcv_status = None;
+                    var_exhausted[assigned_index] = None;
+                },
+                None => unreachable!(),
             }
 
             let new_val = match lcv_status {
@@ -355,13 +364,13 @@ impl Solver {
             // else, if the value was false, go through and backtrack
             else {
                 while matches!(
-                    var_exhausted.get(&assigned_index),
-                    Some(true)
+                    var_exhausted.get(assigned_index),
+                    Some(Some(true))
                 ) {
                     let assigned_last = assigned.pop().unwrap();
                     self.variables[assigned_last].value = None;
                     self.backtracks += 1;
-                    var_exhausted.remove(&assigned_index);
+                    var_exhausted[assigned_index] = None;
                     assigned_index -= 1;
                 }
             }
