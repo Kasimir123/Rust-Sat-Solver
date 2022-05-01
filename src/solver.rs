@@ -3,7 +3,7 @@ use crate::connections::{Connection, ConnectionGroup};
 use crate::variable::Variable;
 
 // import required imports
-use std::process;
+// use std::process;
 use std::collections::BTreeSet;
 use std::error::Error;
 
@@ -124,15 +124,6 @@ impl Solver {
             return Some(true);
         }
 
-        // let ret = match var.value {
-        //     None => Some(true),
-        //     _ => Some(false),
-        // };
-
-        // if ret? {
-        //     return Some(true);
-        // }
-
         Some(var.value? == connection.val)
     }
 
@@ -142,9 +133,6 @@ impl Solver {
 
         let var = self.variables.get(connection.var_pos)?;
 
-        // if var.value == None {
-        //     return Some(false);
-        // }
         if var.value.is_none() {
             return Some(false);
         }
@@ -165,12 +153,7 @@ impl Solver {
         for i in unsat_groups.iter() {
             // println!("{}", i);
             let group = self.connection_groups.get(*i).unwrap();
-            // let or_check = group.connections.iter().any(|con| {
-            //     connections_checked += 1;
-            //     self.check_connection_not_null(*con as usize).unwrap()
-            // });
 
-            // if !or_check {
             let mut count = 0;
             for connection in group.connections.iter() {
                 if self
@@ -209,9 +192,8 @@ impl Solver {
                 }
                 break;
             }
-            // }
         }
-        // process::exit(0x0100);
+
 
         if set {
             for con in self
@@ -325,33 +307,6 @@ impl Solver {
 
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
-
-
-
-
-            
-            // remove after working
-            // for group_index in &sat_groups {
-            //     let group = self.connection_groups.get(*group_index).unwrap();
-            //     let sat_check = group.connections.iter().any(|con| {
-            //         self.check_connection_not_null(*con as usize).unwrap()
-            //     });
-            //     if !sat_check {
-            //         for con in self.connection_groups[*group_index].connections.iter() {
-            //             let actual_con: &Connection = self.connections.get(*con).unwrap();
-            //             // println!("{} {} {}", actual_con.val, self.variables[actual_con.var_pos].name, self.variables[actual_con.var_pos].value.unwrap());
-            //         }
-            //         println!("top {}", assigned.len() - 1);
-            //         // process::exit(1);
-            //     }
-            // }
-
-
-
-            
-
-
-
             // gets the variable to assigned
             let cur = self.variables.get(*assigned.last().unwrap()).unwrap();
 
@@ -384,20 +339,7 @@ impl Solver {
                 new_val = next_cur.literal_sign;
             }
 
-            // if assigned.len() - 1 == 16 {
-            //     match self.variables[pos].value {
-            //         None => {
-            //             println!("before: None")
-            //         },
-            //         _ => {
-            //             println!("before {}", self.variables[pos].value.unwrap());
-            //         }
-            //     }
-            // }
             self.variables[pos].value = new_val;
-            // if assigned.len() - 1 == 16 {
-            //     println!("after {}", self.variables[pos].value.unwrap());
-            // }
 
             // reset the possibly satisfied groups for this assignment
             groups_sat_at_assignment[assigned.len() - 1].clear();
@@ -434,33 +376,6 @@ impl Solver {
 
             self.connections_checked += connections_checked;
 
-
-
-
-
-            // remove after working
-            // for group_index in &sat_groups {
-            //     let group = self.connection_groups.get(*group_index).unwrap();
-            //     let sat_check = group.connections.iter().any(|con| {
-            //         self.check_connection_not_null(*con as usize).unwrap()
-            //     });
-            //     if !sat_check {
-            //         for con in self.connection_groups[*group_index].connections.iter() {
-            //             let actual_con: &Connection = self.connections.get(*con).unwrap();
-            //             // println!("{} {} {}", actual_con.val, self.variables[actual_con.var_pos].name, self.variables[actual_con.var_pos].value.unwrap());
-            //         }
-            //         println!("before {}", assigned.len() - 1);
-                    
-            //         // if assigned.len() - 1 == 16 {
-            //         //     println!("{}", new_val.unwrap());
-            //         // }
-            //         // process::exit(1);
-            //     }
-            // }
-
-
-            
-
             // if check is true, push the next variable to be assigned
             if check {
                 for i in 0..groups_sat_at_assignment[assigned.len() - 1].len() {
@@ -470,28 +385,6 @@ impl Solver {
                     //     .insert(*groups_sat_at_assignment[assigned.len() - 1][i]);
                 }
 
-
-
-
-                
-                // remove after working
-                // for group_index in &sat_groups {
-                //     let group = self.connection_groups.get(*group_index).unwrap();
-                //     let sat_check = group.connections.iter().any(|con| {
-                //         self.check_connection_not_null(*con as usize).unwrap()
-                //     });
-                //     if !sat_check {
-                //         for con in self.connection_groups[*group_index].connections.iter() {
-                //             let actual_con: &Connection = self.connections.get(*con).unwrap();
-                //             // println!("{} {} {}", actual_con.val, self.variables[actual_con.var_pos].name, self.variables[actual_con.var_pos].value.unwrap());
-                //         }
-                //         println!("just inserted {}", assigned.len() - 1);
-                //         // process::exit(1);
-                //     }
-                // }
-
-                
-                
                 let next_cur = self.get_next_cur(&unsat_groups);
 
                 self.connections_checked += next_cur.connections_checked;
@@ -513,71 +406,14 @@ impl Solver {
                     Some(Some(true))
                         
                 ) {
-
-
-                   
-                    // remove after working
-                    // for group_index in &sat_groups {
-                    //     let group = self.connection_groups.get(*group_index).unwrap();
-                    //     let sat_check = group.connections.iter().any(|con| {
-                    //         self.check_connection_not_null(*con as usize).unwrap()
-                    //     });
-                    //     if !sat_check {
-                    //         for con in self.connection_groups[*group_index].connections.iter() {
-                    //             let actual_con: &Connection = self.connections.get(*con).unwrap();
-                    //             // println!("{} {} {}", actual_con.val, self.variables[actual_con.var_pos].name, self.variables[actual_con.var_pos].value.unwrap());
-                    //         }
-                    //         println!("above {}", assigned.len() - 1);
-                    //         println!("{}", group_index);
-                    //         // process::exit(1);
-                    //     }
-                    // }
-
-                    
                     var_exhausted[assigned.len() - 1] = None;
-
-                    // println!("popping: {}", (assigned.len() - 1));
-                    // for i in 14..19 {
-                    //     println!("printing groups sat for assignment: {}", i);
-                    //     for j in 0..groups_sat_at_assignment[i].len() {
-                    //         println!("{}", groups_sat_at_assignment[i][j])
-                    //     }
-                    // }
-                
                     for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
-                        // println!("group index to be switched: {}", groups_sat_at_assignment[assigned.len() - 1][i]);
                         unsat_groups
                             .insert(*groups_sat_at_assignment[assigned.len() - 2][i]);
-                        // sat_groups
-                        //     .remove(groups_sat_at_assignment[assigned.len() - 2][i]);
                     }
-
                     let assigned_last = assigned.pop().unwrap();
-
-
-
-                    // remove after working
-                    // for group_index in &sat_groups {
-                    //     let group = self.connection_groups.get(*group_index).unwrap();
-                    //     let sat_check = group.connections.iter().any(|con| {
-                    //         self.check_connection_not_null(*con as usize).unwrap()
-                    //     });
-                    //     if !sat_check {
-                    //         for con in self.connection_groups[*group_index].connections.iter() {
-                    //             let actual_con: &Connection = self.connections.get(*con).unwrap();
-                    //             // println!("{} {} {}", actual_con.val, self.variables[actual_con.var_pos].name, self.variables[actual_con.var_pos].value.unwrap());
-                    //         }
-                    //         println!("below {}", assigned.len() - 1);
-                    //         process::exit(1);
-                    //     }
-                    // }
-
-
-                    
                     self.variables[assigned_last].value = None;
-                    // println!("{}", assigned.len());
                     self.backtracks += 1;
-                    // println!("backtracking after exhausting {}", assigned.len());
                 }
             }
         }
@@ -613,25 +449,10 @@ impl Solver {
                     let or_check = group.connections.iter().any(|con| {
                         self.check_connection_not_null(*con as usize).unwrap()
                     });
-
-                    // if !or_check {
-                    //     println!("{}", connection_group_index);
-                    //     for con in group.connections.iter() {
-                    //         let actual_con: &Connection = self.connections.get(*con).unwrap();
-                    //         println!("{} {} {}", actual_con.val, self.variables[actual_con.var_pos].name, self.variables[actual_con.var_pos].value.unwrap());
-                    //     }
-                    // }
-
                     connection_group_index += 1;
 
                     or_check
                 });
-     
-        // for con in self.connection_groups[19].connections.iter() {
-        //     let actual_con: &Connection = self.connections.get(*con).unwrap();
-        //     println!("{} {} {}", actual_con.val, self.variables[actual_con.var_pos].name, self.variables[actual_con.var_pos].value.unwrap());
-        // }
-        
         check
     }
 
