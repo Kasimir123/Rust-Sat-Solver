@@ -16,12 +16,13 @@ fn main() {
     let mut solver = Solver::new();
 
     // let f = "./benchmark-cases/uf3.cnf";
-    let f = "./benchmark-cases/uf20.cnf";
+    // let f = "./benchmark-cases/uf5.cnf";
+    // let f = "./benchmark-cases/uf20.cnf";
     // let f = "./benchmark-cases/uf50.cnf";
     // let f = "./benchmark-cases/uf75.cnf";
     // let f = "./benchmark-cases/uf100.cnf";
     // let f = "./benchmark-cases/uf125.cnf";
-    // let f = "./benchmark-cases/uf150.cnf";
+    let f = "./benchmark-cases/uf150.cnf";
     // let f = "./benchmark-cases/uf175.cnf";
 
     let benchmark_file = File::open(f).expect("failed to open benchmark file");
@@ -43,6 +44,7 @@ fn main() {
 
     println!("primary check: {:?}", solve_result.sat);
     println!("user-error check: {:?}", solver.final_check());
+    // solver.print_variables();
 
     // print out stats
     println!("Time:                     {}", elapsed);

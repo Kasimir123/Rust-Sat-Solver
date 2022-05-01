@@ -1,3 +1,5 @@
+
+#[derive(Debug)]
 pub struct Variable {
     pub name: String,
     pub value: Option<bool>,

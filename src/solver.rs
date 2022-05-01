@@ -96,10 +96,12 @@ impl Solver {
                     let var_pos = self.add_variable(var_name.to_owned()).unwrap();
                     let connection = Connection::new(var_pos, !neg);
                     self.connections.push(connection);
+
                     self.variable_connections
                         .get_mut(var_pos)
                         .unwrap()
                         .push(self.connection_groups.len());
+
 
                     con_group.connections.push(self.connections.len() - 1);
                 }
@@ -156,38 +158,41 @@ impl Solver {
 
         for i in 0..self.connection_groups.len() {
             let group = self.connection_groups.get(i).unwrap();
-            let or_check = group.connections.iter().any(|con| {
-                connections_checked += 1;
-                self.check_connection_not_null(*con as usize).unwrap()
-            });
-
-
-            if !or_check {
-                let mut count = 0;
-                for connection in group.connections.iter() {
-                    if self
-                        .variables
-                        .get(self.connections.get(*connection).unwrap().var_pos)
-                        .unwrap()
-                        .value
-                        == None
-                    {
-                        count += 1;
+            if !group.sat {
+                let or_check = group.connections.iter().any(|con| {
+                    connections_checked += 1;
+                    self.check_connection_not_null(*con as usize).unwrap()
+                });
+    
+    
+                if !or_check {
+                    let mut count = 0;
+                    for connection in group.connections.iter() {
+                        if self
+                            .variables
+                            .get(self.connections.get(*connection).unwrap().var_pos)
+                            .unwrap()
+                            .value
+                            == None
+                        {
+                            count += 1;
+                        }
+                    }
+                    if !set {
+                        set = true;
+                        min_con = Some(i);
+                        min_val = Some(count);
+                    } else if count < min_val.unwrap() {
+                        min_con = Some(i);
+                        min_val = Some(count);
+                    }
+    
+                    if min_val.unwrap() == 1 {
+                        break;
                     }
                 }
-                if !set {
-                    set = true;
-                    min_con = Some(i);
-                    min_val = Some(count);
-                } else if count < min_val.unwrap() {
-                    min_con = Some(i);
-                    min_val = Some(count);
-                }
-
-                if min_val.unwrap() == 1 {
-                    break;
-                }
             }
+            
         }
 
         if set {
@@ -251,21 +256,32 @@ impl Solver {
 
             let new_val = match cur.value {
                 None => Some(true),
-                Some(true) => Some(false),
+                Some(true) => {
+                    for groups in self.variable_connections.get(pos).unwrap().iter() {
+                        let mut group = self.connection_groups.get_mut(*groups).unwrap();
+                        group.sat = false;
+                    }
+                    Some(false)},
                 Some(false) => unreachable!(),
             };
 
             self.variables[pos].value = new_val;
 
             // loop through connections and perform out checks
+            // println!("\n\ncheck");
 
             let check = self
                 .variable_connections
                 .get(pos)
                 .unwrap()
                 .iter()
-                .all(|group| {
-                    let group = self.connection_groups.get(*group).unwrap();
+                .all(|group_num| {
+                    let group = self.connection_groups.get(*group_num).unwrap();
+
+                    // println!("G{}", group.sat);
+                    if group.sat {
+                        return true;
+                    }
 
                     let or_check = group.connections.iter().any(|con| {
                         connections_checked += 1;
@@ -279,6 +295,29 @@ impl Solver {
 
             // if check is true, push the next variable to be assigned
             if check {
+
+                // println!("{} {:?}", pos, self.variable_connections.get(pos).unwrap());
+                for groups in self.variable_connections.get_mut(pos).unwrap().iter() {
+                    // println!("Set group {}", groups);
+                    let mut group = self.connection_groups.get_mut(*groups).unwrap();
+
+                    group.sat = group.connections.iter().any(|connection| {
+                        let connection = self.connections.get(*connection).unwrap();
+                        let var = self.variables.get(connection.var_pos).unwrap();
+                        let ret = match var.value {
+                            None => Some(false),
+                            _ => Some(true)
+                        };
+                
+                        if ret.unwrap() == false {
+                            return false;
+                        }
+
+                        self.connections_checked += 1;
+                
+                        var.value.unwrap() == connection.val
+                    });
+                }
 
                 let next_cur = self.get_next_cur();
 
@@ -296,12 +335,14 @@ impl Solver {
             }
             // else, if the value was false, go through and backtrack
             else {
+
                 while matches!(
                     self.variables.get(*assigned.last().unwrap()).unwrap().value,
                     Some(false)
                 ) {
                     let assigned_last = assigned.pop().unwrap();
                     self.variables[assigned_last].value = None;
+
                     self.backtracks += 1;
                 }
             }
@@ -315,7 +356,6 @@ impl Solver {
         }
     }
     pub fn final_check(&mut self) -> bool {
-        println!("{} {}", self.connection_groups.len(), self.variables.len());
 
         for i in 0..self.variables.len() {
             let cur = self.variables.get(i).unwrap();
@@ -344,7 +384,9 @@ impl Solver {
     // prints out the variables
     pub fn print_variables(&self) {
         for var in &self.variables {
-            println!("{} {}", var.name, var.value.unwrap());
+            if var.value != None {
+                println!("{} {}", var.name, var.value.unwrap());
+            }
         }
     }
 }
