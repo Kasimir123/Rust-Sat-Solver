@@ -41,7 +41,6 @@ fn main() {
     // get the elapsed time
     let elapsed = start.elapsed().as_secs_f64();
 
-
     println!("primary check: {:?}", solve_result.sat);
     println!("user-error check: {:?}", solver.final_check());
     // solver.print_variables();

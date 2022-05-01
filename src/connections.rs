@@ -1,5 +1,3 @@
-
-
 #[derive(Debug)]
 pub struct Connection {
     pub val: bool,
@@ -12,17 +10,8 @@ impl Connection {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ConnectionGroup {
     pub connections: Vec<usize>,
-    pub sat: bool
-}
-
-impl Default for ConnectionGroup {
-    fn default() -> Self {
-        ConnectionGroup {
-            connections: Vec::new(),
-            sat: false
-        }
-    }
+    pub sat: bool,
 }

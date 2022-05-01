@@ -7,12 +7,14 @@ use std::error::Error;
 
 use std::io::{BufRead, BufReader, Read};
 
+// struct we return from the solver
 pub struct SolveResult {
     pub sat: bool,
     pub connections_checked: u64,
     pub num_backtracks: u64,
 }
 
+// struct we return to determine the next variable to check
 pub struct CurResult {
     pub set: bool,
     pub cur: Option<usize>,
@@ -102,7 +104,6 @@ impl Solver {
                         .unwrap()
                         .push(self.connection_groups.len());
 
-
                     con_group.connections.push(self.connections.len() - 1);
                 }
 
@@ -130,7 +131,7 @@ impl Solver {
         Some(var.value? == connection.val)
     }
 
-    // checks an individual connection
+    // checks an individual connection and assumes not set is false
     pub fn check_connection_not_null(&self, connection: usize) -> Option<bool> {
         let connection = self.connections.get(connection)?;
 
@@ -138,23 +139,23 @@ impl Solver {
 
         let ret = match var.value {
             None => Some(false),
-            _ => Some(true)
+            _ => Some(true),
         };
 
-        if ret? == false {
+        if !(ret?) {
             return Some(false);
         }
 
         Some(var.value? == connection.val)
     }
 
+    // gets the next variable to set
     pub fn get_next_cur(&self) -> CurResult {
         let mut connections_checked = 0;
 
         let mut set = false;
         let mut min_con: Option<usize> = None;
         let mut min_val: Option<usize> = None;
-
 
         for i in 0..self.connection_groups.len() {
             let group = self.connection_groups.get(i).unwrap();
@@ -163,8 +164,7 @@ impl Solver {
                     connections_checked += 1;
                     self.check_connection_not_null(*con as usize).unwrap()
                 });
-    
-    
+
                 if !or_check {
                     let mut count = 0;
                     for connection in group.connections.iter() {
@@ -186,13 +186,12 @@ impl Solver {
                         min_con = Some(i);
                         min_val = Some(count);
                     }
-    
+
                     if min_val.unwrap() == 1 {
                         break;
                     }
                 }
             }
-            
         }
 
         if set {
@@ -216,11 +215,11 @@ impl Solver {
                 }
             }
         }
-        return CurResult {
+        CurResult {
             set: false,
             cur: None,
             connections_checked,
-        };
+        }
     }
 
     // solves the sat problem
@@ -245,7 +244,6 @@ impl Solver {
 
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
-
             // gets the variable to assigned
             let cur = self.variables.get(*assigned.last().unwrap()).unwrap();
 
@@ -261,7 +259,8 @@ impl Solver {
                         let mut group = self.connection_groups.get_mut(*groups).unwrap();
                         group.sat = false;
                     }
-                    Some(false)},
+                    Some(false)
+                }
                 Some(false) => unreachable!(),
             };
 
@@ -295,7 +294,6 @@ impl Solver {
 
             // if check is true, push the next variable to be assigned
             if check {
-
                 // println!("{} {:?}", pos, self.variable_connections.get(pos).unwrap());
                 for groups in self.variable_connections.get_mut(pos).unwrap().iter() {
                     // println!("Set group {}", groups);
@@ -306,15 +304,15 @@ impl Solver {
                         let var = self.variables.get(connection.var_pos).unwrap();
                         let ret = match var.value {
                             None => Some(false),
-                            _ => Some(true)
+                            _ => Some(true),
                         };
-                
-                        if ret.unwrap() == false {
+
+                        if !ret.unwrap() {
                             return false;
                         }
 
                         self.connections_checked += 1;
-                
+
                         var.value.unwrap() == connection.val
                     });
                 }
@@ -335,7 +333,6 @@ impl Solver {
             }
             // else, if the value was false, go through and backtrack
             else {
-
                 while matches!(
                     self.variables.get(*assigned.last().unwrap()).unwrap().value,
                     Some(false)
@@ -355,33 +352,36 @@ impl Solver {
             num_backtracks: self.backtracks as u64,
         }
     }
+
+    // function that allows us to check if the variables are really SAT,
+    // done because we are human are therefore prone to so many mistakes
     pub fn final_check(&mut self) -> bool {
 
+        // set all unset variables to true, if truly sat then this won't matter for the connections,
+        // as there can be multiple solutions in some cases
         for i in 0..self.variables.len() {
             let cur = self.variables.get(i).unwrap();
             let new_val = match cur.value {
-                    None => Some(true),
-                    Some(true) => Some(true),
-                    Some(false) => Some(false),
+                None => Some(true),
+                Some(true) => Some(true),
+                Some(false) => Some(false),
             };
             self.variables[i].value = new_val;
         }
 
-        let check = self
-                .connection_groups
+        // loop through and checks all the connections
+        let check = self.connection_groups.iter().all(|group| {
+            let or_check = group
+                .connections
                 .iter()
-                .all(|group| {
+                .any(|con| self.check_connection_not_null(*con as usize).unwrap());
 
-                    let or_check = group.connections.iter().any(|con| {
-                        self.check_connection_not_null(*con as usize).unwrap()
-                    });
-
-                    or_check
-                });
+            or_check
+        });
         check
     }
 
-    // prints out the variables
+    // prints out the variables if they are not none
     pub fn print_variables(&self) {
         for var in &self.variables {
             if var.value != None {
