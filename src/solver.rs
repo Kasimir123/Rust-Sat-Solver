@@ -3,18 +3,19 @@ use crate::connections::{Connection, ConnectionGroup};
 use crate::variable::Variable;
 
 // import required imports
-// use std::process;
 use std::collections::BTreeSet;
 use std::error::Error;
-
 use std::io::{BufRead, BufReader, Read};
 
+
+// Struct for the response from solve
 pub struct SolveResult {
     pub sat: bool,
     pub connections_checked: u64,
     pub num_backtracks: u64,
 }
 
+// Struct for the response from get next variable function
 pub struct CurResult {
     pub set: bool,
     pub cur: Option<usize>,
@@ -58,56 +59,93 @@ impl Solver {
     // adds a variable to the solver, if the variable exists then return its position,
     // otherwise add it and return the position
     pub fn add_variable(&mut self, name: String) -> Option<usize> {
+
+        // Loop through the variables to see if the variable exists
         for i in 0..self.variables.len() {
+
+            // if it does then return the index
             if self.variables[i].name.eq(&name) {
                 return Some(i);
             }
         }
 
+        // if not, then make a new variable and set the position
         let mut new_var = Variable::new(name);
         new_var.pos = self.variables.len();
 
+        // push the variable to the variables
         self.variables.push(new_var);
+
+        // create a new vector for all connections attached to this variable
         self.variable_connections.push(Vec::new());
 
+        // return the variable position
         Some(self.variables.len() - 1)
     }
 
     // loads the standard cnf benchmark file into the solver
     pub fn load_cnf(&mut self, source: impl Read) -> Result<(), Box<dyn Error>> {
+
+        // create a reader from the bytes we passed the function
         let buf_reader = BufReader::new(source);
+
+        // check if we can start parsing the contents
         let mut check = false;
+
+        // loop through all the lines
         for maybe_line in buf_reader.lines() {
+
+            // unwrap the line
             let line = maybe_line?;
+
+            // if the line contains p cnf we can start parsing the CNF
             if line.contains("p cnf") {
                 check = true;
-            } else if line.contains('%') {
+            } 
+            // if % then we can stop parsing the cnf
+            else if line.contains('%') {
                 return Ok(());
-            } else if check {
+            } 
+            // otherwise parse the cnf
+            else if check {
+
+                // clean up the line and split by spaces
                 let st = line.trim();
                 let st = st.split(' ');
                 let st: Vec<&str> = st.collect();
 
+                // initialize a connection group
                 let mut con_group = ConnectionGroup::default();
 
+                // get the 3 variables
                 for var_name in st.iter().take(3) {
                     let mut var_name = *var_name;
+
+                    // if the variable is negated then set neg to true and remove the -
+                    // from the variable name
                     let neg = var_name.contains('-');
                     if neg {
                         var_name = &var_name[1..];
                     }
 
+                    // add the variable and get its position
                     let var_pos = self.add_variable(var_name.to_owned()).unwrap();
+
+                    // create the connection
                     let connection = Connection::new(var_pos, !neg);
+
+                    // push the connection and add the connection to the variables connections
                     self.connections.push(connection);
                     self.variable_connections
                         .get_mut(var_pos)
                         .unwrap()
                         .push(self.connection_groups.len());
 
+                    // add the connection position to the connection group
                     con_group.connections.push(self.connections.len() - 1);
                 }
 
+                // push the connection group to the connection groups
                 self.connection_groups.push(con_group);
             }
         }
@@ -116,27 +154,37 @@ impl Solver {
 
     // checks an individual connection
     pub fn check_connection(&self, connection: usize) -> Option<bool> {
+
+        // gets the connection based on the position
         let connection = self.connections.get(connection)?;
 
+        // gets the variable in the connection
         let var = self.variables.get(connection.var_pos)?;
 
+        // if var is none then return true
         if var.value.is_none() {
             return Some(true);
         }
 
+        // otherwise return if the variable is equal to the value
         Some(var.value? == connection.val)
     }
 
-    // checks an individual connection
+    // checks an individual connection and returns false for none
     pub fn check_connection_not_null(&self, connection: usize) -> Option<bool> {
+
+        // gets the connection based on the position
         let connection = self.connections.get(connection)?;
 
+        // gets the variable in the connection
         let var = self.variables.get(connection.var_pos)?;
 
+        // if the variable is none then return false
         if var.value.is_none() {
             return Some(false);
         }
 
+        // otherwise return if the variable is equal to the value
         Some(var.value? == connection.val)
     }
 

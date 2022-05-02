@@ -47,8 +47,6 @@ fn main() {
 
     // print out stats
     println!("Time:                     {}", elapsed);
-    // println!("Number of Variables:      {}", solver.variables.len());
-    // println!("Number of Connections:    {}", solver.connections.len());
     println!(
         "Connections Checked:      {}",
         solve_result.connections_checked
