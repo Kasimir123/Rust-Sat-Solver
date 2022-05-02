@@ -95,6 +95,7 @@ impl Solver {
         // loop through all the lines
         for maybe_line in buf_reader.lines() {
 
+
             // unwrap the line
             let line = maybe_line?;
 
@@ -118,8 +119,12 @@ impl Solver {
                 let mut con_group = ConnectionGroup::default();
 
                 // get the 3 variables
-                for var_name in st.iter().take(3) {
-                    let mut var_name = *var_name;
+                for i in 0..st.len() {
+                    let mut var_name = st[i];
+
+                    if var_name.eq("0") {
+                        continue;
+                    }
 
                     // if the variable is negated then set neg to true and remove the -
                     // from the variable name
