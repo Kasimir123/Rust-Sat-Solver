@@ -19,6 +19,8 @@ pub struct CurResult {
     pub set: bool,
     pub cur: Option<usize>,
     pub connections_checked: usize,
+    pub is_uc: bool,
+    pub literal_sign: Option<bool>,
 }
 
 #[derive(Default)]
@@ -156,6 +158,8 @@ impl Solver {
         let mut set = false;
         let mut min_con: Option<usize> = None;
         let mut min_val: Option<usize> = None;
+        let mut literal_sign: Option<bool> = None;
+        let mut is_uc: bool = false;
 
         for i in 0..self.connection_groups.len() {
             let group = self.connection_groups.get(i).unwrap();
@@ -188,6 +192,20 @@ impl Solver {
                     }
 
                     if min_val.unwrap() == 1 {
+                        for connection in group.connections.iter() {
+                            if self
+                                .variables
+                                .get(self.connections.get(*connection).unwrap().var_pos)
+                                .unwrap()
+                                .value
+                                == None
+                            {
+                                literal_sign = Some(
+                                    self.connections.get(*connection)
+                                        .unwrap().val
+                                );
+                            }
+                        }
                         break;
                     }
                 }
@@ -207,10 +225,13 @@ impl Solver {
                     .get(self.connections.get(*con).unwrap().var_pos)
                     .unwrap();
                 if var.value == None {
+                    is_uc = min_val.unwrap() == 1;
                     return CurResult {
                         set: true,
                         cur: Some(var.pos),
                         connections_checked,
+                        is_uc,
+                        literal_sign,
                     };
                 }
             }
@@ -219,7 +240,51 @@ impl Solver {
             set: false,
             cur: None,
             connections_checked,
+            is_uc,
+            literal_sign,
         }
+    }
+
+    pub fn get_lcv(&self, cur: &Variable) -> bool {
+        let mut connections_checked = 0;
+
+        let mut literal_sign: bool;
+        let mut var_score = 0;
+
+        for i in 0..self.variable_connections[cur.pos].len() {
+            let group_index = self.variable_connections[cur.pos][i];
+            let group = self.connection_groups.get(group_index).unwrap();
+
+            if !group.sat {
+                let or_check = group.connections.iter().any(|con| {
+                    connections_checked += 1;
+                    self.check_connection_not_null(*con as usize).unwrap()
+                });
+
+                if !or_check {
+                    for connection in group.connections.iter() {
+                        if self
+                            .variables
+                            .get(self.connections.get(*connection).unwrap().var_pos)
+                            .unwrap()
+                            .name
+                            == cur.name
+                        {
+                            literal_sign = self.connections.get(*connection).unwrap().val;
+                            if literal_sign {
+                                var_score += 1;
+                            } else {
+                                var_score -= 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if var_score >= 0 {
+            return true;
+        }
+        return false;
     }
 
     // solves the sat problem
@@ -252,19 +317,34 @@ impl Solver {
             // gets the variables position
             let pos = cur.pos;
 
-            let new_val = match cur.value {
-                None => Some(true),
-                Some(true) => {
-                    for groups in self.variable_connections.get(pos).unwrap().iter() {
-                        let mut group = self.connection_groups.get_mut(*groups).unwrap();
-                        group.sat = false;
+            let mut new_val = Some(true);
+
+            if next_cur.is_uc {
+                new_val = next_cur.literal_sign;
+            }
+            else {
+                new_val = match cur.been_set {
+                    false => Some(self.get_lcv(cur)),
+                    true => {
+                        Some(!cur.value.unwrap())
                     }
-                    Some(false)
+                };
+            }
+
+            if cur.been_set {
+                for groups in self.variable_connections.get(pos).unwrap().iter() {
+                    let mut group = self.connection_groups.get_mut(*groups).unwrap();
+                    group.sat = false;
                 }
-                Some(false) => unreachable!(),
-            };
+            }
 
             self.variables[pos].value = new_val;
+
+            if self.variables[pos].been_set {
+                self.variables[pos].last_set = true;
+            } else {
+                self.variables[pos].been_set = true;
+            }
 
             // loop through connections and perform out checks
             // println!("\n\ncheck");
@@ -333,12 +413,19 @@ impl Solver {
             }
             // else, if the value was false, go through and backtrack
             else {
-                while matches!(
-                    self.variables.get(*assigned.last().unwrap()).unwrap().value,
-                    Some(false)
-                ) {
+                while !assigned.is_empty()
+                    && matches!(
+                        self.variables
+                            .get(*assigned.last().unwrap())
+                            .unwrap()
+                            .last_set,
+                        true
+                    )
+                {
                     let assigned_last = assigned.pop().unwrap();
                     self.variables[assigned_last].value = None;
+                    self.variables[assigned_last].been_set = false;
+                    self.variables[assigned_last].last_set = false;
 
                     self.backtracks += 1;
                 }
@@ -356,7 +443,6 @@ impl Solver {
     // function that allows us to check if the variables are really SAT,
     // done because we are human are therefore prone to so many mistakes
     pub fn final_check(&mut self) -> bool {
-
         // set all unset variables to true, if truly sat then this won't matter for the connections,
         // as there can be multiple solutions in some cases
         for i in 0..self.variables.len() {
