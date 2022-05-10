@@ -75,8 +75,9 @@ impl PropositionalConnection {
         output
     }
 
-    pub fn demorgans(&mut self) {
+    pub fn demorgans(&mut self) -> bool {
         let apply_de_morgan = self.variables.len() > 1 && self.is_negated;
+        let mut check = apply_de_morgan;
 
         if apply_de_morgan {
             self.is_negated = false;
@@ -91,11 +92,15 @@ impl PropositionalConnection {
             if apply_de_morgan {
                 var.is_negated = !var.is_negated;
             }
-            var.demorgans();
+            check |= var.demorgans();
         }
+
+        return check;
     }
 
-    pub fn distributive(&mut self) {
+    pub fn distributive(&mut self) -> bool {
+        let mut check = false;
+
         if self.variable == None {
             if self.operator == Operator::OR && self.variables.len() > 0 {
                 let mut left_hand_group = PropositionalConnection::new(Operator::NONE, false, None);
@@ -107,6 +112,7 @@ impl PropositionalConnection {
                     if cur_var.operator == Operator::OR || cur_var.operator == Operator::NONE {
                         left_hand_group.variables.push(cur_var.clone());
                     } else {
+                        check = true;
                         let mut new_and = PropositionalConnection::new(Operator::AND, false, None);
                         for var in self.variables[i].variables.iter() {
                             let mut new_or =
@@ -170,20 +176,23 @@ impl PropositionalConnection {
             }
 
             for var in self.variables.iter_mut() {
-                var.distributive();
+                check |= var.distributive();
             }
         }
+
+        return check;
     }
 
-    pub fn clean_cnf(&mut self) {
+    pub fn clean_cnf(&mut self) -> bool {
+        let mut check = false;
 
-        
         let variables = self.variables.clone();
         self.variables.clear();
 
         if self.operator == Operator::AND {
             for var in variables.iter() {
                 if var.operator == Operator::AND {
+                    check = true;
                     for new_var in var.variables.iter() {
                         self.variables.push(new_var.clone());
                     }
@@ -191,10 +200,10 @@ impl PropositionalConnection {
                     self.variables.push(var.clone());
                 }
             }
-        }
-        else if self.operator == Operator::OR {
+        } else if self.operator == Operator::OR {
             for var in variables.iter() {
                 if var.operator == Operator::OR {
+                    check = true;
                     for new_var in var.variables.iter() {
                         self.variables.push(new_var.clone());
                     }
@@ -202,10 +211,9 @@ impl PropositionalConnection {
                     self.variables.push(var.clone());
                 }
             }
-        }
-        else {
+        } else {
             for var in variables.iter() {
-                    self.variables.push(var.clone());
+                self.variables.push(var.clone());
             }
         }
 
@@ -218,22 +226,31 @@ impl PropositionalConnection {
                     if !variables.contains_key(&name) {
                         variables.insert(name, var.is_negated);
                     } else if variables[&name] != var.is_negated {
-                        removable.push(i);
-                        break;
+                        if !removable.contains(&i) {
+                            removable.push(i);
+                        }
                     }
                 }
             }
         }
 
-        for i in removable.iter() {
-            if *i < self.variables.len() {
-                self.variables.remove(*i);
+        removable.sort_by(|a, b| {
+            if a.cmp(b) == std::cmp::Ordering::Less {
+                return std::cmp::Ordering::Greater;
+            } else {
+                return std::cmp::Ordering::Less;
             }
+        });
+        for i in removable.iter() {
+            check = true;
+            self.variables.remove(*i);
         }
 
         for var in self.variables.iter_mut() {
-            var.clean_cnf();
+            check |= var.clean_cnf();
         }
+
+        return check;
     }
 
     pub fn debug_print(&self) {
@@ -249,9 +266,47 @@ impl PropositionalConnection {
     }
 
     pub fn to_cnf(&mut self) {
-        self.demorgans();
-        self.distributive();
-        self.clean_cnf();
+        let mut check = true;
+
+        while check {
+            check = false;
+            check |= self.demorgans();
+            check |= self.distributive();
+            check |= self.clean_cnf();
+        }
+
+        for variable in self.variables.iter_mut() {
+            let mut removable = Vec::new();
+            for (i, var) in variable.variables.iter().enumerate() {
+                if var.variable != None {
+                    for j in (i + 1)..variable.variables.len() {
+                        if variable.variables[j].variable != None {
+                            if var
+                                .variable
+                                .clone()
+                                .unwrap()
+                                .eq(&variable.variables[j].variable.clone().unwrap())
+                                && var.is_negated == variable.variables[j].is_negated
+                            {
+                                removable.push(j);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            removable.sort_by(|a, b| {
+                if a.cmp(b) == std::cmp::Ordering::Less {
+                    return std::cmp::Ordering::Greater;
+                } else {
+                    return std::cmp::Ordering::Less;
+                }
+            });
+            for i in removable.iter() {
+                variable.variables.remove(*i);
+            }
+        }
     }
 }
 
@@ -459,90 +514,86 @@ mod tests {
 
         con.variables.push(con3);
 
+        assert_eq!(
+            con.print_string(),
+            "((c ∧ ¬g ∧ ¬b ∧ ¬e) ∨ (¬c ∧ g ∧ ¬b ∧ ¬e) ∨ (c ∧ g ∧ b ∧ e))"
+        );
+        con.to_cnf();
+        assert_eq!(
+            con.print_string(),
+            "((c ∨ g) ∧ (c ∨ g ∨ ¬b) ∧ (c ∨ g ∨ ¬e) ∧ (c ∨ ¬b) ∧ (c ∨ ¬b ∨ ¬g) ∧ (c ∨ ¬b) ∧ (c ∨ ¬b ∨ ¬e) ∧ (c ∨ ¬e) ∧ (c ∨ ¬e ∨ ¬g) ∧ (c ∨ ¬e ∨ ¬b) ∧ (c ∨ ¬e) ∧ (g ∨ ¬c ∨ ¬b) ∧ (g ∨ ¬c ∨ ¬e) ∧ (g ∨ c) ∧ (g ∨ ¬b) ∧ (g ∨ ¬e) ∧ (g ∨ ¬b ∨ c) ∧ (g ∨ ¬b) ∧ (g ∨ ¬b ∨ ¬e) ∧ (g ∨ ¬e ∨ c) ∧ (g ∨ ¬e ∨ ¬b) ∧ (g ∨ ¬e) ∧ (b ∨ ¬c ∨ ¬g) ∧ (b ∨ ¬c ∨ ¬e) ∧ (b ∨ g ∨ c) ∧ (b ∨ g ∨ ¬e) ∧ (b ∨ ¬e ∨ c) ∧ (b ∨ ¬e ∨ ¬g) ∧ (b ∨ ¬e) ∧ (e ∨ ¬c ∨ ¬g) ∧ (e ∨ ¬c ∨ ¬b) ∧ (e ∨ g ∨ c) ∧ (e ∨ g ∨ ¬b) ∧ (e ∨ ¬b ∨ c) ∧ (e ∨ ¬b ∨ ¬g) ∧ (e ∨ ¬b))"
+        );
+    }
+
+    #[test]
+    fn test_cnf_complete() {
+        let mut con = PropositionalConnection::new(Operator::AND, false, None);
+        let mut con1 = PropositionalConnection::new(Operator::OR, false, None);
+        let mut con11 = PropositionalConnection::new(Operator::AND, false, None);
+        let mut con12 = PropositionalConnection::new(Operator::AND, false, None);
+        let mut con2 = PropositionalConnection::new(Operator::OR, false, None);
+        let mut con21 = PropositionalConnection::new(Operator::AND, false, None);
+        let mut con22 = PropositionalConnection::new(Operator::AND, false, None);
+        let mut con3 = PropositionalConnection::new(Operator::OR, false, None);
+        let mut con31 = PropositionalConnection::new(Operator::AND, false, None);
+        let mut con32 = PropositionalConnection::new(Operator::AND, false, None);
+        let mut con33 = PropositionalConnection::new(Operator::AND, false, None);
+        let a = PropositionalConnection::new(Operator::NONE, false, Some("a".to_string()));
+        let not_a = PropositionalConnection::new(Operator::NONE, true, Some("a".to_string()));
+        let b = PropositionalConnection::new(Operator::NONE, false, Some("b".to_string()));
+        let not_b = PropositionalConnection::new(Operator::NONE, true, Some("b".to_string()));
+        let c = PropositionalConnection::new(Operator::NONE, false, Some("c".to_string()));
+        let not_c = PropositionalConnection::new(Operator::NONE, true, Some("c".to_string()));
+        let d = PropositionalConnection::new(Operator::NONE, false, Some("d".to_string()));
+        let not_d = PropositionalConnection::new(Operator::NONE, true, Some("d".to_string()));
+        let e = PropositionalConnection::new(Operator::NONE, false, Some("e".to_string()));
+        let not_e = PropositionalConnection::new(Operator::NONE, true, Some("e".to_string()));
+        let g = PropositionalConnection::new(Operator::NONE, false, Some("g".to_string()));
+        let not_g = PropositionalConnection::new(Operator::NONE, true, Some("g".to_string()));
+
+        con11.variables.push(a);
+        con11.variables.push(not_d);
+
+        con12.variables.push(not_a);
+        con12.variables.push(d);
+
+        con1.variables.push(con11);
+        con1.variables.push(con12);
+
+        con21.variables.push(b.clone());
+        con21.variables.push(c.clone());
+
+        con22.variables.push(not_b.clone());
+        con22.variables.push(not_c.clone());
+
+        con2.variables.push(con21);
+        con2.variables.push(con22);
+
+        con31.variables.push(c.clone());
+        con31.variables.push(not_g);
+        con31.variables.push(not_b.clone());
+        con31.variables.push(not_e.clone());
+
+        con32.variables.push(not_c);
+        con32.variables.push(g.clone());
+        con32.variables.push(not_b);
+        con32.variables.push(not_e);
+
+        con33.variables.push(c);
+        con33.variables.push(g);
+        con33.variables.push(b);
+        con33.variables.push(e);
+
+        con3.variables.push(con31);
+        con3.variables.push(con32);
+        con3.variables.push(con33);
+
+        con.variables.push(con1);
+        con.variables.push(con2);
+        con.variables.push(con3);
+
         println!("Test Print: {}", con);
-        con.to_cnf();
-        con.to_cnf();
-        con.to_cnf();
-        con.to_cnf();
-        con.to_cnf();
-        con.to_cnf();
-        con.to_cnf();
-        con.to_cnf();
-        con.to_cnf();
-        con.to_cnf();
         con.to_cnf();
         println!("Test Print: {}", con);
     }
-
-    // #[test]
-    // fn test_cnf_complete() {
-    //     let mut con = PropositionalConnection::new(Operator::AND, false, None);
-    //     let mut con1 = PropositionalConnection::new(Operator::OR, false, None);
-    //     let mut con11 = PropositionalConnection::new(Operator::AND, false, None);
-    //     let mut con12 = PropositionalConnection::new(Operator::AND, false, None);
-    //     let mut con2 = PropositionalConnection::new(Operator::OR, false, None);
-    //     let mut con21 = PropositionalConnection::new(Operator::AND, false, None);
-    //     let mut con22 = PropositionalConnection::new(Operator::AND, false, None);
-    //     let mut con3 = PropositionalConnection::new(Operator::OR, false, None);
-    //     let mut con31 = PropositionalConnection::new(Operator::AND, false, None);
-    //     let mut con32 = PropositionalConnection::new(Operator::AND, false, None);
-    //     let mut con33 = PropositionalConnection::new(Operator::AND, false, None);
-    //     let a = PropositionalConnection::new(Operator::NONE, false, Some("a".to_string()));
-    //     let not_a = PropositionalConnection::new(Operator::NONE, true, Some("a".to_string()));
-    //     let b = PropositionalConnection::new(Operator::NONE, false, Some("b".to_string()));
-    //     let not_b = PropositionalConnection::new(Operator::NONE, true, Some("b".to_string()));
-    //     let c = PropositionalConnection::new(Operator::NONE, false, Some("c".to_string()));
-    //     let not_c = PropositionalConnection::new(Operator::NONE, true, Some("c".to_string()));
-    //     let d = PropositionalConnection::new(Operator::NONE, false, Some("d".to_string()));
-    //     let not_d = PropositionalConnection::new(Operator::NONE, true, Some("d".to_string()));
-    //     let e = PropositionalConnection::new(Operator::NONE, false, Some("e".to_string()));
-    //     let not_e = PropositionalConnection::new(Operator::NONE, true, Some("e".to_string()));
-    //     let g = PropositionalConnection::new(Operator::NONE, false, Some("g".to_string()));
-    //     let not_g = PropositionalConnection::new(Operator::NONE, true, Some("g".to_string()));
-
-    //     con11.variables.push(a);
-    //     con11.variables.push(not_d);
-
-    //     con12.variables.push(not_a);
-    //     con12.variables.push(d);
-
-    //     con1.variables.push(con11);
-    //     con1.variables.push(con12);
-
-    //     con21.variables.push(b.clone());
-    //     con21.variables.push(c.clone());
-
-    //     con22.variables.push(not_b.clone());
-    //     con22.variables.push(not_c.clone());
-
-    //     con2.variables.push(con21);
-    //     con2.variables.push(con22);
-
-    //     // con31.variables.push(c.clone());
-    //     // con31.variables.push(not_g);
-    //     // con31.variables.push(not_b.clone());
-    //     // con31.variables.push(not_e.clone());
-
-    //     // con32.variables.push(not_c);
-    //     // con32.variables.push(g.clone());
-    //     // con32.variables.push(not_b);
-    //     // con32.variables.push(not_e);
-
-    //     // con33.variables.push(c);
-    //     // con33.variables.push(g);
-    //     // con33.variables.push(b);
-    //     // con33.variables.push(e);
-
-    //     // con3.variables.push(con31);
-    //     // con3.variables.push(con32);
-    //     // con3.variables.push(con33);
-
-    //     con.variables.push(con1);
-    //     con.variables.push(con2);
-    //     // con.variables.push(con3);
-
-    //     println!("Test Print: {}", con);
-    //     con.to_cnf();
-    //     println!("Test Print: {}", con);
-    // }
 }
