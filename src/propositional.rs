@@ -157,8 +157,15 @@ impl PropositionalConnection {
                     }
                 });
 
-                for left_var in left_hand_group.variables.iter() {
-                    self.variables.push(left_var.clone());
+                if left_hand_group.variables.len() == 1 {
+                    self.operator = left_hand_group.variables[0].operator.clone();
+                    for left_var in left_hand_group.variables[0].variables.iter() {
+                        self.variables.push(left_var.clone());
+                    }
+                } else {
+                    for left_var in left_hand_group.variables.iter() {
+                        self.variables.push(left_var.clone());
+                    }
                 }
             }
 
@@ -169,6 +176,39 @@ impl PropositionalConnection {
     }
 
     pub fn clean_cnf(&mut self) {
+
+        
+        let variables = self.variables.clone();
+        self.variables.clear();
+
+        if self.operator == Operator::AND {
+            for var in variables.iter() {
+                if var.operator == Operator::AND {
+                    for new_var in var.variables.iter() {
+                        self.variables.push(new_var.clone());
+                    }
+                } else {
+                    self.variables.push(var.clone());
+                }
+            }
+        }
+        else if self.operator == Operator::OR {
+            for var in variables.iter() {
+                if var.operator == Operator::OR {
+                    for new_var in var.variables.iter() {
+                        self.variables.push(new_var.clone());
+                    }
+                } else {
+                    self.variables.push(var.clone());
+                }
+            }
+        }
+        else {
+            for var in variables.iter() {
+                    self.variables.push(var.clone());
+            }
+        }
+
         let mut removable = Vec::new();
         for (i, variable) in self.variables.iter_mut().enumerate() {
             let mut variables: HashMap<String, bool> = HashMap::new();
@@ -186,11 +226,25 @@ impl PropositionalConnection {
         }
 
         for i in removable.iter() {
-            self.variables.remove(*i);
+            if *i < self.variables.len() {
+                self.variables.remove(*i);
+            }
         }
 
         for var in self.variables.iter_mut() {
             var.clean_cnf();
+        }
+    }
+
+    pub fn debug_print(&self) {
+        println!("Big guy: {:?} {}", self.operator, self);
+
+        for var in self.variables.iter() {
+            println!("Small guy: {:?} {}", var.operator, var);
+        }
+
+        for var in self.variables.iter() {
+            var.debug_print();
         }
     }
 
@@ -357,58 +411,68 @@ mod tests {
         con.variables.push(con1);
         con.variables.push(con2);
 
-        println!("Test Print: {}", con);
-        assert_eq!(con.print_string(), "(((a ∧ ¬d) ∨ (¬a ∧ d)) ∧ ((b ∧ c) ∨ (¬b ∧ ¬c)))");
+        assert_eq!(
+            con.print_string(),
+            "(((a ∧ ¬d) ∨ (¬a ∧ d)) ∧ ((b ∧ c) ∨ (¬b ∧ ¬c)))"
+        );
         con.to_cnf();
-        println!("Test Print: {}", con);
-        assert_eq!(con.print_string(), "(((¬a ∨ ¬d) ∧ (d ∨ a)) ∧ ((¬b ∨ c) ∧ (¬c ∨ b)))");
+        assert_eq!(
+            con.print_string(),
+            "((¬a ∨ ¬d) ∧ (d ∨ a) ∧ (¬b ∨ c) ∧ (¬c ∨ b))"
+        );
     }
 
-    // #[test]
-    // fn test_cnf_simple_part_2() {
-    //     let mut con = PropositionalConnection::new(Operator::AND, false, None);
-    //     let mut con3 = PropositionalConnection::new(Operator::OR, false, None);
-    //     let mut con31 = PropositionalConnection::new(Operator::AND, false, None);
-    //     let mut con32 = PropositionalConnection::new(Operator::AND, false, None);
-    //     let mut con33 = PropositionalConnection::new(Operator::AND, false, None);
-    //     let b = PropositionalConnection::new(Operator::NONE, false, Some("b".to_string()));
-    //     let not_b = PropositionalConnection::new(Operator::NONE, true, Some("b".to_string()));
-    //     let c = PropositionalConnection::new(Operator::NONE, false, Some("c".to_string()));
-    //     let not_c = PropositionalConnection::new(Operator::NONE, true, Some("c".to_string()));
-    //     let e = PropositionalConnection::new(Operator::NONE, false, Some("e".to_string()));
-    //     let not_e = PropositionalConnection::new(Operator::NONE, true, Some("e".to_string()));
-    //     let g = PropositionalConnection::new(Operator::NONE, false, Some("g".to_string()));
-    //     let not_g = PropositionalConnection::new(Operator::NONE, true, Some("g".to_string()));
+    #[test]
+    fn test_cnf_simple_part_2() {
+        let mut con = PropositionalConnection::new(Operator::AND, false, None);
+        let mut con3 = PropositionalConnection::new(Operator::OR, false, None);
+        let mut con31 = PropositionalConnection::new(Operator::AND, false, None);
+        let mut con32 = PropositionalConnection::new(Operator::AND, false, None);
+        let mut con33 = PropositionalConnection::new(Operator::AND, false, None);
+        let b = PropositionalConnection::new(Operator::NONE, false, Some("b".to_string()));
+        let not_b = PropositionalConnection::new(Operator::NONE, true, Some("b".to_string()));
+        let c = PropositionalConnection::new(Operator::NONE, false, Some("c".to_string()));
+        let not_c = PropositionalConnection::new(Operator::NONE, true, Some("c".to_string()));
+        let e = PropositionalConnection::new(Operator::NONE, false, Some("e".to_string()));
+        let not_e = PropositionalConnection::new(Operator::NONE, true, Some("e".to_string()));
+        let g = PropositionalConnection::new(Operator::NONE, false, Some("g".to_string()));
+        let not_g = PropositionalConnection::new(Operator::NONE, true, Some("g".to_string()));
 
-    //     con31.variables.push(c.clone());
-    //     con31.variables.push(not_g);
-    //     con31.variables.push(not_b.clone());
-    //     con31.variables.push(not_e.clone());
+        con31.variables.push(c.clone());
+        con31.variables.push(not_g);
+        con31.variables.push(not_b.clone());
+        con31.variables.push(not_e.clone());
 
-    //     con32.variables.push(not_c);
-    //     con32.variables.push(g.clone());
-    //     con32.variables.push(not_b);
-    //     con32.variables.push(not_e);
+        con32.variables.push(not_c);
+        con32.variables.push(g.clone());
+        con32.variables.push(not_b);
+        con32.variables.push(not_e);
 
-    //     con33.variables.push(c);
-    //     con33.variables.push(g);
-    //     con33.variables.push(b);
-    //     con33.variables.push(e);
+        con33.variables.push(c);
+        con33.variables.push(g);
+        con33.variables.push(b);
+        con33.variables.push(e);
 
-    //     con3.variables.push(con31);
-    //     con3.variables.push(con32);
-    //     con3.variables.push(con33);
+        con3.variables.push(con31);
+        con3.variables.push(con32);
+        con3.variables.push(con33);
 
-    //     con.variables.push(con3);
+        con.variables.push(con3);
 
-    //     println!("Test Print: {}", con);
-    //     con.to_cnf();
-    //     con.to_cnf();
-    //     con.to_cnf();
-    //     con.to_cnf();
-    //     con.to_cnf();
-    //     println!("Test Print: {}", con);
-    // }
+        println!("Test Print: {}", con);
+        con.to_cnf();
+        con.to_cnf();
+        con.to_cnf();
+        con.to_cnf();
+        con.to_cnf();
+        con.to_cnf();
+        con.to_cnf();
+        con.to_cnf();
+        con.to_cnf();
+        con.to_cnf();
+        con.to_cnf();
+        println!("Test Print: {}", con);
+    }
 
     // #[test]
     // fn test_cnf_complete() {
