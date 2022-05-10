@@ -76,7 +76,7 @@ impl PropositionalConnection {
     }
 
     // applies demorgans law to the clause
-    pub fn demorgans(&mut self) -> bool {
+    fn demorgans(&mut self) -> bool {
         
         // check if we need to apply demorgans law
         let apply_de_morgan = self.variables.len() > 1 && self.is_negated;
@@ -112,7 +112,7 @@ impl PropositionalConnection {
     }
 
     // performs distributive law on the clause
-    pub fn distributive(&mut self) -> bool {
+    fn distributive(&mut self) -> bool {
 
         // check to see if anything was changed
         let mut check = false;
@@ -228,7 +228,7 @@ impl PropositionalConnection {
     }
 
     // cleans up the cnf structure
-    pub fn clean_cnf(&mut self) -> bool {
+    fn clean_cnf(&mut self) -> bool {
         // check to see if any changes were made
         let mut check = false;
 
@@ -381,6 +381,7 @@ impl fmt::Display for PropositionalConnection {
         write!(f, "{}", self.print_string())
     }
 }
+
 
 #[cfg(test)]
 mod tests {

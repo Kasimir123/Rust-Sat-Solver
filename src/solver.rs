@@ -1,6 +1,7 @@
 // import out structs
 use crate::connections::{Connection, ConnectionGroup};
 use crate::variable::Variable;
+use crate::propositional::PropositionalConnection;
 
 // import required imports
 use std::collections::BTreeSet;
@@ -148,6 +149,26 @@ impl Solver {
             }
         }
         Ok(())
+    }
+
+    pub fn load_propositional(&mut self, mut con: PropositionalConnection) {
+        con.to_cnf();
+
+        for or in con.variables.iter() {
+            let mut con_group = ConnectionGroup::default();
+            for var in or.variables.iter() {
+                let var_pos = self.add_variable(var.variable.clone().unwrap()).unwrap();
+                let connection = Connection::new(var_pos, var.is_negated);
+                self.connections.push(connection);
+                self.variable_connections
+                .get_mut(var_pos)
+                .unwrap()
+                .push(self.connection_groups.len());
+                con_group.connections.push(self.connections.len() - 1);
+            }
+            self.connection_groups.push(con_group);
+        }
+
     }
 
     // checks an individual connection
