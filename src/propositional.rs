@@ -75,12 +75,22 @@ impl PropositionalConnection {
         output
     }
 
+    // applies demorgans law to the clause
     pub fn demorgans(&mut self) -> bool {
+        
+        // check if we need to apply demorgans law
         let apply_de_morgan = self.variables.len() > 1 && self.is_negated;
+
+        // get the check for if something changed
         let mut check = apply_de_morgan;
 
+        // apply demorgans law to the current clause
         if apply_de_morgan {
+
+            // set to not negated
             self.is_negated = false;
+
+            // change the operator
             self.operator = if self.operator == Operator::AND {
                 Operator::OR
             } else {
@@ -88,7 +98,10 @@ impl PropositionalConnection {
             };
         }
 
+        // loop through all the clauses in the clause
         for var in self.variables.iter_mut() {
+
+            // negate them if we applied demorgans law
             if apply_de_morgan {
                 var.is_negated = !var.is_negated;
             }
@@ -98,30 +111,55 @@ impl PropositionalConnection {
         return check;
     }
 
+    // performs distributive law on the clause
     pub fn distributive(&mut self) -> bool {
+
+        // check to see if anything was changed
         let mut check = false;
 
+        // if we are not a variable
         if self.variable == None {
-            if self.operator == Operator::OR && self.variables.len() > 0 {
+
+            // if this is an or group
+            if self.operator == Operator::OR {
+
+                // Create a group to store the left hand side 
                 let mut left_hand_group = PropositionalConnection::new(Operator::NONE, false, None);
 
+                // push the first variable / clause
                 left_hand_group.variables.push(self.variables[0].clone());
 
+                // loop througb the rest
                 for i in 1..self.variables.len() {
                     let cur_var = &self.variables[i];
+
+                    // if not and then we push it to left hand side
                     if cur_var.operator == Operator::OR || cur_var.operator == Operator::NONE {
                         left_hand_group.variables.push(cur_var.clone());
-                    } else {
+                    } 
+                    // otherwise we perform distributive law
+                    else {
                         check = true;
+
+                        // create a new and group
                         let mut new_and = PropositionalConnection::new(Operator::AND, false, None);
+
+                        // loop through the variables for the and clause
                         for var in self.variables[i].variables.iter() {
+
+                            // create a new or group
                             let mut new_or =
                                 PropositionalConnection::new(Operator::OR, false, None);
+
+                            // copy left hand side variables into the group
                             for left_var in left_hand_group.variables.iter() {
                                 new_or.variables.push(left_var.clone());
                             }
+
+                            // copy the and group variable into the or group
                             new_or.variables.push(var.clone());
 
+                            // sort so ands are always on the right side
                             new_or.variables.sort_by(|a, b| {
                                 if a.operator == b.operator {
                                     return std::cmp::Ordering::Equal;
@@ -132,11 +170,13 @@ impl PropositionalConnection {
                                 }
                             });
 
+                            // push the new or group to the and group
                             new_and.variables.push(new_or);
                         }
 
                         left_hand_group.variables.clear();
 
+                        // sort so ands are always on the right side
                         new_and.variables.sort_by(|a, b| {
                             if a.operator == b.operator {
                                 return std::cmp::Ordering::Equal;
@@ -147,12 +187,14 @@ impl PropositionalConnection {
                             }
                         });
 
+                        // add the and group to the left hand group
                         left_hand_group.variables.push(new_and);
                     }
                 }
 
                 self.variables.clear();
 
+                // sort so ands are always on the right side
                 left_hand_group.variables.sort_by(|a, b| {
                     if a.operator == b.operator {
                         return std::cmp::Ordering::Equal;
@@ -163,6 +205,7 @@ impl PropositionalConnection {
                     }
                 });
 
+                // copy the items from the left hand group into the current variable
                 if left_hand_group.variables.len() == 1 {
                     self.operator = left_hand_group.variables[0].operator.clone();
                     for left_var in left_hand_group.variables[0].variables.iter() {
@@ -175,6 +218,7 @@ impl PropositionalConnection {
                 }
             }
 
+            // check the other clauses
             for var in self.variables.iter_mut() {
                 check |= var.distributive();
             }
@@ -183,16 +227,23 @@ impl PropositionalConnection {
         return check;
     }
 
+    // cleans up the cnf structure
     pub fn clean_cnf(&mut self) -> bool {
+        // check to see if any changes were made
         let mut check = false;
 
+        // gets the variables and prepares it for the new ones
         let variables = self.variables.clone();
         self.variables.clear();
 
+        // if we are in an and group
         if self.operator == Operator::AND {
             for var in variables.iter() {
+                // if one of the sub groups is also an and group
                 if var.operator == Operator::AND {
                     check = true;
+
+                    // then bring all items into the upper group
                     for new_var in var.variables.iter() {
                         self.variables.push(new_var.clone());
                     }
@@ -200,10 +251,15 @@ impl PropositionalConnection {
                     self.variables.push(var.clone());
                 }
             }
-        } else if self.operator == Operator::OR {
+        }
+        // if we are in an or group
+        else if self.operator == Operator::OR {
             for var in variables.iter() {
+                // if one of the sub groups is also an or group
                 if var.operator == Operator::OR {
                     check = true;
+
+                    // then bring all items into the upper group
                     for new_var in var.variables.iter() {
                         self.variables.push(new_var.clone());
                     }
@@ -211,29 +267,35 @@ impl PropositionalConnection {
                     self.variables.push(var.clone());
                 }
             }
-        } else {
+        }
+        // otherwise add the variables back in
+        else {
             for var in variables.iter() {
                 self.variables.push(var.clone());
             }
         }
 
+        // removes clauses if we have a variable negated and not negated in an or group: (a or ~a)
         let mut removable = Vec::new();
         for (i, variable) in self.variables.iter_mut().enumerate() {
-            let mut variables: HashMap<String, bool> = HashMap::new();
-            for var in variable.variables.iter() {
-                if var.variable != None {
-                    let name = var.variable.clone().unwrap();
-                    if !variables.contains_key(&name) {
-                        variables.insert(name, var.is_negated);
-                    } else if variables[&name] != var.is_negated {
-                        if !removable.contains(&i) {
-                            removable.push(i);
+            if variable.operator == Operator::OR {
+                let mut variables: HashMap<String, bool> = HashMap::new();
+                for var in variable.variables.iter() {
+                    if var.variable != None {
+                        let name = var.variable.clone().unwrap();
+                        if !variables.contains_key(&name) {
+                            variables.insert(name, var.is_negated);
+                        } else if variables[&name] != var.is_negated {
+                            if !removable.contains(&i) {
+                                removable.push(i);
+                            }
                         }
                     }
                 }
             }
         }
 
+        // sort the indices we remove from greatest to least so that we don't go past the length of the vec
         removable.sort_by(|a, b| {
             if a.cmp(b) == std::cmp::Ordering::Less {
                 return std::cmp::Ordering::Greater;
@@ -241,11 +303,14 @@ impl PropositionalConnection {
                 return std::cmp::Ordering::Less;
             }
         });
+
+        // remove unecessary clauses
         for i in removable.iter() {
             check = true;
             self.variables.remove(*i);
         }
 
+        // clean the rest of the clauses
         for var in self.variables.iter_mut() {
             check |= var.clean_cnf();
         }
@@ -253,21 +318,12 @@ impl PropositionalConnection {
         return check;
     }
 
-    pub fn debug_print(&self) {
-        println!("Big guy: {:?} {}", self.operator, self);
-
-        for var in self.variables.iter() {
-            println!("Small guy: {:?} {}", var.operator, var);
-        }
-
-        for var in self.variables.iter() {
-            var.debug_print();
-        }
-    }
-
+    // convert the object model to cnf
     pub fn to_cnf(&mut self) {
+        // set the initial check to true
         let mut check = true;
 
+        // while we have made changes, keep looping
         while check {
             check = false;
             check |= self.demorgans();
@@ -275,10 +331,16 @@ impl PropositionalConnection {
             check |= self.clean_cnf();
         }
 
+        // loop through all variables and get rid of duplicated variables in clauses
         for variable in self.variables.iter_mut() {
+            // create a vec to store which indices to be removed
             let mut removable = Vec::new();
+
+            // loop through the clause
             for (i, var) in variable.variables.iter().enumerate() {
+                // if the variable is a named variable
                 if var.variable != None {
+                    // loop througb the rest of the clause and check for duplicates
                     for j in (i + 1)..variable.variables.len() {
                         if variable.variables[j].variable != None {
                             if var
@@ -296,6 +358,7 @@ impl PropositionalConnection {
                 }
             }
 
+            // sort the indices we remove from greatest to least so that we don't go past the length of the vec
             removable.sort_by(|a, b| {
                 if a.cmp(b) == std::cmp::Ordering::Less {
                     return std::cmp::Ordering::Greater;
@@ -303,6 +366,8 @@ impl PropositionalConnection {
                     return std::cmp::Ordering::Less;
                 }
             });
+
+            // remove all variables that were duplicated
             for i in removable.iter() {
                 variable.variables.remove(*i);
             }
@@ -310,6 +375,7 @@ impl PropositionalConnection {
     }
 }
 
+// Custom fmt for debug prints
 impl fmt::Display for PropositionalConnection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.print_string())
@@ -592,8 +658,8 @@ mod tests {
         con.variables.push(con2);
         con.variables.push(con3);
 
-        println!("Test Print: {}", con);
+        // println!("Test Print: {}", con);
         con.to_cnf();
-        println!("Test Print: {}", con);
+        // println!("Test Print: {}", con);
     }
 }
