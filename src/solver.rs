@@ -7,7 +7,6 @@ use std::collections::BTreeSet;
 use std::error::Error;
 use std::io::{BufRead, BufReader, Read};
 
-
 // Struct for the response from solve
 pub struct SolveResult {
     pub sat: bool,
@@ -59,10 +58,8 @@ impl Solver {
     // adds a variable to the solver, if the variable exists then return its position,
     // otherwise add it and return the position
     pub fn add_variable(&mut self, name: String) -> Option<usize> {
-
         // Loop through the variables to see if the variable exists
         for i in 0..self.variables.len() {
-
             // if it does then return the index
             if self.variables[i].name.eq(&name) {
                 return Some(i);
@@ -85,7 +82,6 @@ impl Solver {
 
     // loads the standard cnf benchmark file into the solver
     pub fn load_cnf(&mut self, source: impl Read) -> Result<(), Box<dyn Error>> {
-
         // create a reader from the bytes we passed the function
         let buf_reader = BufReader::new(source);
 
@@ -94,22 +90,19 @@ impl Solver {
 
         // loop through all the lines
         for maybe_line in buf_reader.lines() {
-
-
             // unwrap the line
             let line = maybe_line?;
 
             // if the line contains p cnf we can start parsing the CNF
             if line.contains("p cnf") {
                 check = true;
-            } 
+            }
             // if % then we can stop parsing the cnf
             else if line.contains('%') {
                 return Ok(());
-            } 
+            }
             // otherwise parse the cnf
             else if check {
-
                 // clean up the line and split by spaces
                 let st = line.trim();
                 let st = st.split(' ');
@@ -159,7 +152,6 @@ impl Solver {
 
     // checks an individual connection
     pub fn check_connection(&self, connection: usize) -> Option<bool> {
-
         // gets the connection based on the position
         let connection = self.connections.get(connection)?;
 
@@ -177,7 +169,6 @@ impl Solver {
 
     // checks an individual connection and returns false for none
     pub fn check_connection_not_null(&self, connection: usize) -> Option<bool> {
-
         // gets the connection based on the position
         let connection = self.connections.get(connection)?;
 
