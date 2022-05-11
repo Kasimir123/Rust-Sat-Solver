@@ -345,18 +345,9 @@ impl Solver {
         }
         let mut lcv_status: Option<bool>;
 
-        // this Vec is not O(1) for contains (but could be with a custom class)
-        // would also need an optimized "clear" method in custom class
-        // could be matrix (num var by num var)
-        // where each row is the assigned var
-        // and each col is the conflicting assignments
-        // would be VecVecbool (bool isConflicting)
-        // custom class would also need Vec(var_pos) to know which ones to reset during custom-class clear
-        // there would be a Vec(var_pos) for each row
-        // Vec(var_pos) could just be natively cleared on reset
-        let mut conflicts: Vec<Vec<usize>> = Vec::new();
+        let mut conflicts: Vec<BTreeSet<usize>> = Vec::new();
         for _i in 0..self.variables.len() {
-            conflicts.push(Vec::new());
+            conflicts.push(BTreeSet::new());
         }
 
         // while we have at least one value to be assigned
@@ -419,7 +410,7 @@ impl Solver {
                         for con in group.connections.iter() {
                             let con = self.connections.get(*con).unwrap();
                             if con.var_pos != pos {
-                                conflicts[pos].push(con.var_pos);
+                                conflicts[pos].insert(con.var_pos);
                             }
                         }
                     }
