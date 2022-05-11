@@ -468,14 +468,27 @@ impl Solver {
                 //         }
                 //     }
                 // }
-                while  matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true)))
-                    || (!conflicts[last_assignment].is_empty()
-                        && !conflicts[last_assignment].contains(&assigned[assigned.len() - 1])
-                        && (assigned[assigned.len() - 1] != last_assignment))
-                {
-                    if conflicts[last_assignment].contains(&assigned[assigned.len() - 1]) {
-                        conflicts[last_assignment].clear();
+                if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {
+                    while  !conflicts[last_assignment].is_empty()
+                    {
+                        if conflicts[last_assignment].contains(&assigned[assigned.len() - 1]) {
+                            conflicts[last_assignment].clear();
+                        }
+                        var_exhausted[assigned.len() - 1] = None;
+                        for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
+                            unsat_groups.insert(*groups_sat_at_assignment[assigned.len() - 2][i]);
+                        }
+                        let to_reset = assigned.pop().unwrap();
+                        self.variables[to_reset].value = None;
+                        // println!("conflicts empty {}", conflicts[last_assignment].is_empty());
+                        // if conflicts[last_assignment].is_empty() {
+                        //     println!("pos var exhausted {}", var_exhausted[assigned.len() - 1].unwrap())
+                        // }
                     }
+                    self.backtracks += 1;
+                }
+                while  matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true)))
+                {
                     var_exhausted[assigned.len() - 1] = None;
                     for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
                         unsat_groups.insert(*groups_sat_at_assignment[assigned.len() - 2][i]);
