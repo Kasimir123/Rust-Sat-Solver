@@ -486,8 +486,8 @@ impl Solver {
                         // if conflicts[last_assignment].is_empty() {
                         //     println!("pos var exhausted {}", var_exhausted[assigned.len() - 1].unwrap())
                         // }
+                        self.backtracks += 1;
                     }
-                    self.backtracks += 1;
                 }
                 while  matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true)))
                 {
