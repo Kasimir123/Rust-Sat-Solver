@@ -457,12 +457,18 @@ impl Solver {
 
             // else, if the value was false, go through and backtrack
             else {
-                let last_assignment = assigned[assigned.len() - 1];
+                let mut assignment = assigned[assigned.len() - 1];
                 if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {
                     loop {
-                        if conflicts[last_assignment].contains(&assigned[assigned.len() - 1])
+                        if conflicts[assignment].contains(&assigned[assigned.len() - 1])
                         {
-                            break;
+                            for conflict in conflicts[assignment].clone().iter() {
+                                conflicts[assigned[assigned.len() - 1]].insert(*conflict);
+                            }
+                            assignment = assigned[assigned.len() - 1];
+                            if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(false))) {
+                                break;
+                            }
                         }
                         var_exhausted[assigned.len() - 1] = None;
                         for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
@@ -473,16 +479,16 @@ impl Solver {
                         self.backtracks += 1;
                     }
                 }
-                while  matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true)))
-                {
-                    var_exhausted[assigned.len() - 1] = None;
-                    for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
-                        unsat_groups.insert(*groups_sat_at_assignment[assigned.len() - 2][i]);
-                    }
-                    let to_reset = assigned.pop().unwrap();
-                    self.variables[to_reset].value = None;
-                    self.backtracks += 1;
-                }
+                // while  matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true)))
+                // {
+                //     var_exhausted[assigned.len() - 1] = None;
+                //     for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
+                //         unsat_groups.insert(*groups_sat_at_assignment[assigned.len() - 2][i]);
+                //     }
+                //     let to_reset = assigned.pop().unwrap();
+                //     self.variables[to_reset].value = None;
+                //     self.backtracks += 1;
+                // }
             }
         }
 
