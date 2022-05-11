@@ -471,8 +471,10 @@ impl Solver {
                 if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {
                     while  !conflicts[last_assignment].is_empty()
                     {
-                        if conflicts[last_assignment].contains(&assigned[assigned.len() - 1]) {
+                        if conflicts[last_assignment].contains(&assigned[assigned.len() - 1])
+                        {
                             conflicts[last_assignment].clear();
+                            break;
                         }
                         var_exhausted[assigned.len() - 1] = None;
                         for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
