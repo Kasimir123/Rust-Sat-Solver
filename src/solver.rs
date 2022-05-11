@@ -462,8 +462,15 @@ impl Solver {
                     loop {
                         if conflicts[assignment].contains(&assigned[assigned.len() - 1])
                         {
-                            for conflict in conflicts[assignment].clone().iter() {
-                                conflicts[assigned[assigned.len() - 1]].insert(*conflict);
+                            // for i in 0..conflicts[assignment].len() {
+                            //     conflicts[assigned[assigned.len() - 1]].insert(conflicts[assignment][i]);
+                            // }
+                            let mut temp: Vec<usize> = Vec::new();
+                            for conflict in conflicts[assignment].iter() {
+                                temp.push(*conflict);
+                            }
+                            for temp_var in temp.iter() {
+                                conflicts[assigned[assigned.len() - 1]].insert(*temp_var);
                             }
                             assignment = assigned[assigned.len() - 1];
                             if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(false))) {
