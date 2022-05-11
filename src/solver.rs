@@ -474,7 +474,7 @@ impl Solver {
                         && (assigned[assigned.len() - 1] != last_assignment))
                 {
                     if conflicts[last_assignment].contains(&assigned[assigned.len() - 1]) {
-                        conflicts[last_assignment].remove(&assigned[assigned.len() - 1]);
+                        conflicts[last_assignment].clear();
                     }
                     var_exhausted[assigned.len() - 1] = None;
                     for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
