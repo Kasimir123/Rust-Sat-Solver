@@ -462,9 +462,6 @@ impl Solver {
                     loop {
                         if conflicts[assignment].contains(&assigned[assigned.len() - 1])
                         {
-                            // for i in 0..conflicts[assignment].len() {
-                            //     conflicts[assigned[assigned.len() - 1]].insert(conflicts[assignment][i]);
-                            // }
                             let mut temp: Vec<usize> = Vec::new();
                             for conflict in conflicts[assignment].iter() {
                                 temp.push(*conflict);
@@ -486,16 +483,6 @@ impl Solver {
                         self.backtracks += 1;
                     }
                 }
-                // while  matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true)))
-                // {
-                //     var_exhausted[assigned.len() - 1] = None;
-                //     for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
-                //         unsat_groups.insert(*groups_sat_at_assignment[assigned.len() - 2][i]);
-                //     }
-                //     let to_reset = assigned.pop().unwrap();
-                //     self.variables[to_reset].value = None;
-                //     self.backtracks += 1;
-                // }
             }
         }
 
