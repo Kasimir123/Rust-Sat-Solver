@@ -44,7 +44,7 @@ pub struct Solver {
 }
 
 impl Solver {
-    // create a new solver instance
+    // create a new solver instances
     pub fn new() -> Self {
         Solver {
             variables: Vec::new(),
@@ -345,6 +345,11 @@ impl Solver {
         }
         let mut lcv_status: Option<bool>;
 
+        let mut conflicts: Vec<BTreeSet<usize>> = Vec::new();
+        for _i in 0..self.variables.len() {
+            conflicts.push(BTreeSet::new());
+        }
+
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
             // gets the variable to assigned
@@ -401,6 +406,15 @@ impl Solver {
                         self.check_connection(*con as usize).unwrap()
                     });
 
+                    if !or_check {
+                        for con in group.connections.iter() {
+                            let con = self.connections.get(*con).unwrap();
+                            if con.var_pos != pos {
+                                conflicts[pos].insert(con.var_pos);
+                            }
+                        }
+                    }
+
                     let sat_check = group.connections.iter().any(|con| {
                         connections_checked += 1;
                         self.check_connection_not_null(*con as usize).unwrap()
@@ -436,18 +450,46 @@ impl Solver {
                 }
 
                 assigned.push(next_cur.cur.unwrap());
+                conflicts[assigned[assigned.len() - 1]].clear();
             }
+
+            // need a case in the following while to deal with exhausted first variable (unsatisfiable)
+
             // else, if the value was false, go through and backtrack
             else {
-                while matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {
+                let last_assignment = assigned[assigned.len() - 1];
+                // println!("last assigned {}", last_assignment);
+                // println!("len assigned before {}", assigned.len());
+                // for conflict in conflicts[last_assignment].iter() {
+                //     println!("conflict {}", conflict);
+                //     for i in 0..assigned.len() {
+                //         if assigned[i] == *conflict {
+                //             println!("var exhausted {}", var_exhausted[i].unwrap());
+                //         }
+                //     }
+                // }
+                while  matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true)))
+                    || (!conflicts[last_assignment].is_empty()
+                        && !conflicts[last_assignment].contains(&assigned[assigned.len() - 1])
+                        && (assigned[assigned.len() - 1] != last_assignment))
+                {
+                    if conflicts[last_assignment].contains(&assigned[assigned.len() - 1]) {
+                        conflicts[last_assignment].remove(&assigned[assigned.len() - 1]);
+                    }
                     var_exhausted[assigned.len() - 1] = None;
                     for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
                         unsat_groups.insert(*groups_sat_at_assignment[assigned.len() - 2][i]);
                     }
-                    let assigned_last = assigned.pop().unwrap();
-                    self.variables[assigned_last].value = None;
+                    let to_reset = assigned.pop().unwrap();
+                    self.variables[to_reset].value = None;
                     self.backtracks += 1;
+                    // println!("conflicts empty {}", conflicts[last_assignment].is_empty());
+                    // if conflicts[last_assignment].is_empty() {
+                    //     println!("pos var exhausted {}", var_exhausted[assigned.len() - 1].unwrap())
+                    // }
                 }
+                // println!("len assigned after {}", assigned.len());
+                // println!("next assigned {}", assigned[assigned.len() - 1]);
             }
         }
 

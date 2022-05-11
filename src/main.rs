@@ -29,7 +29,7 @@ fn main() {
     // let f = "./benchmark-cases/uf175.cnf";
     // let f = "./benchmark-cases/uf200.cnf";
     // let f = "./benchmark-cases/uf250.cnf";
-    let f = "./benchmark-cases/f600.cnf";
+    // let f = "./benchmark-cases/f600.cnf";
 
     let benchmark_file = File::open(f).expect("failed to open benchmark file");
 
