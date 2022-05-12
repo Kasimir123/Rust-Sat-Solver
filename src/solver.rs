@@ -419,13 +419,12 @@ impl Solver {
 
             // if check is true, push the next variable to be assigned
             if check {
-                let mut sat_connections_checked = 0;
+                let mut is_sat_connections_checked = 0;
                 for group_index in self.variable_connections.get(pos).unwrap().iter() {
-
                     let group = self.connection_groups.get(*group_index).unwrap();
 
                     let sat_check = group.connections.iter().any(|con| {
-                        sat_connections_checked += 1;
+                        is_sat_connections_checked += 1;
                         self.check_connection_not_null(*con as usize).unwrap()
                     });
 
@@ -434,7 +433,7 @@ impl Solver {
                         unsat_groups.remove(group_index);
                     }
                 }
-                self.connections_checked += sat_connections_checked;
+                self.connections_checked += is_sat_connections_checked;
 
                 let next_cur = self.get_next_cur(&unsat_groups);
 
