@@ -350,6 +350,11 @@ impl Solver {
             conflict_set.push(BTreeSet::new());
         }
 
+        let mut var_assigned_index: Vec<usize> = Vec::new();
+        for _i in 0..self.variables.len() {
+            var_assigned_index.push(0);
+        }
+
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
             // gets the variable to assigned
@@ -393,42 +398,38 @@ impl Solver {
 
             let mut check = true;
             let mut min_group_index: Option<usize> = None;
-            for group in self.variable_connections.get(pos).unwrap().iter() {
-                let group_index = group;
-                let group = self.connection_groups.get(*group).unwrap();
+            let mut min_var_assiged_indices: Vec<usize> = Vec::new();
+            for group_index in self.variable_connections.get(pos).unwrap().iter() {
+                let group = self.connection_groups.get(*group_index).unwrap();
                 let or_check = group.connections.iter().any(|con| {
                     connections_checked += 1;
                     self.check_connection(*con as usize).unwrap()
                 });
                 if !or_check {
-                    check = false;
                     if matches!(min_group_index, None) {
-                        min_group_index = Some(*group_index);
+                        let group = self.connection_groups.get(*group_index).unwrap();
+                        for con in group.connections.iter() {
+                            if self.connections.get(*con).unwrap().var_pos == pos {continue;}
+                            min_group_index = Some(*group_index);
+                            // for i in 0..var_assigned_index.len() {
+                            //     println!("{}", var_assigned_index[i]);
+                            // }
+                            min_var_assiged_indices.push(var_assigned_index[self.connections.get(*con).unwrap().var_pos]);
+                        }
                     } else {
-                        let mut min_var_assiged_indices: Vec<usize> = Vec::new();
                         let mut pos_var_assiged_indices: Vec<usize> = Vec::new();
                         let group = self.connection_groups.get(*group_index).unwrap();
                         for con in group.connections.iter() {
                             if self.connections.get(*con).unwrap().var_pos == pos {continue;}
-                            for i in 0..assigned.len() {
-                                if assigned[i] == self.connections.get(*con).unwrap().var_pos {
-                                    pos_var_assiged_indices.push(i);
-                                }
-                            }
-                        }
-                        let group = self.connection_groups.get(min_group_index.unwrap()).unwrap();
-                        for con in group.connections.iter() {
-                            if self.connections.get(*con).unwrap().var_pos == pos {continue;}
-                            for i in 0..assigned.len() {
-                                if assigned[i] == self.connections.get(*con).unwrap().var_pos {
-                                    min_var_assiged_indices.push(i);
-                                }
-                            }
+                            pos_var_assiged_indices.push(var_assigned_index[self.connections.get(*con).unwrap().var_pos]);
                         }
                         if pos_var_assiged_indices.iter().max() < min_var_assiged_indices.iter().max() {
                             min_group_index = Some(*group_index);
+                            min_var_assiged_indices = pos_var_assiged_indices;
                         }
                     }
+                    check = false;
+                    break;
                 }
             }
 
@@ -521,6 +522,7 @@ impl Solver {
 
                 assigned.push(next_cur.cur.unwrap());
                 conflict_set[assigned[assigned.len() - 1]].clear();
+                var_assigned_index[next_cur.cur.unwrap()] = assigned.len() - 1;
             }
 
             // need a case in the following while to deal with exhausted first variable (unsatisfiable)
