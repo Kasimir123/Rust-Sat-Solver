@@ -345,9 +345,9 @@ impl Solver {
         }
         let mut lcv_status: Option<bool>;
 
-        let mut conflicts: Vec<BTreeSet<usize>> = Vec::new();
+        let mut conflict_sets: Vec<BTreeSet<usize>> = Vec::new();
         for _i in 0..self.variables.len() {
-            conflicts.push(BTreeSet::new());
+            conflict_sets.push(BTreeSet::new());
         }
 
         // while we have at least one value to be assigned
@@ -410,10 +410,31 @@ impl Solver {
                         for con in group.connections.iter() {
                             let con = self.connections.get(*con).unwrap();
                             if con.var_pos != pos {
-                                conflicts[pos].insert(con.var_pos);
+                                conflict_sets[pos].insert(con.var_pos);
                             }
                         }
                     }
+
+                    // let sat_check = group.connections.iter().any(|con| {
+                    //     connections_checked += 1;
+                    //     self.check_connection_not_null(*con as usize).unwrap()
+                    // });
+
+                    // if sat_check && unsat_groups.contains(group_index) {
+                    //     groups_sat_at_assignment[assigned.len() - 1].push(group_index);
+                    // }
+
+                    or_check
+                });
+
+            self.connections_checked += connections_checked;
+
+            // if check is true, push the next variable to be assigned
+            if check {
+                for group in self.variable_connections.get(pos).unwrap().iter() {
+                    let group_index = group;
+
+                    let group = self.connection_groups.get(*group).unwrap();
 
                     let sat_check = group.connections.iter().any(|con| {
                         connections_checked += 1;
@@ -423,18 +444,10 @@ impl Solver {
                     if sat_check && unsat_groups.contains(group_index) {
                         groups_sat_at_assignment[assigned.len() - 1].push(group_index);
                     }
-
-                    or_check
-                });
-
-            self.connections_checked += connections_checked;
-
-            // if check is true, push the next variable to be assigned
-            if check {
+                }
+                
                 for i in 0..groups_sat_at_assignment[assigned.len() - 1].len() {
                     unsat_groups.remove(groups_sat_at_assignment[assigned.len() - 1][i]);
-                    // sat_groups
-                    //     .insert(*groups_sat_at_assignment[assigned.len() - 1][i]);
                 }
 
                 let next_cur = self.get_next_cur(&unsat_groups);
@@ -450,7 +463,7 @@ impl Solver {
                 }
 
                 assigned.push(next_cur.cur.unwrap());
-                conflicts[assigned[assigned.len() - 1]].clear();
+                conflict_sets[assigned[assigned.len() - 1]].clear();
             }
 
             // need a case in the following while to deal with exhausted first variable (unsatisfiable)
@@ -460,14 +473,14 @@ impl Solver {
                 let mut assignment = assigned[assigned.len() - 1];
                 if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {
                     loop {
-                        if conflicts[assignment].contains(&assigned[assigned.len() - 1])
+                        if conflict_sets[assignment].contains(&assigned[assigned.len() - 1])
                         {
                             let mut temp: Vec<usize> = Vec::new();
-                            for conflict in conflicts[assignment].iter() {
+                            for conflict in conflict_sets[assignment].iter() {
                                 temp.push(*conflict);
                             }
                             for temp_var in temp.iter() {
-                                conflicts[assigned[assigned.len() - 1]].insert(*temp_var);
+                                conflict_sets[assigned[assigned.len() - 1]].insert(*temp_var);
                             }
                             assignment = assigned[assigned.len() - 1];
                             if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(false))) {
