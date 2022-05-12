@@ -397,8 +397,6 @@ impl Solver {
                 .unwrap()
                 .iter()
                 .all(|group| {
-                    let group_index = group;
-
                     let group = self.connection_groups.get(*group).unwrap();
 
                     let or_check = group.connections.iter().any(|con| {
@@ -414,16 +412,6 @@ impl Solver {
                             }
                         }
                     }
-
-                    // let sat_check = group.connections.iter().any(|con| {
-                    //     connections_checked += 1;
-                    //     self.check_connection_not_null(*con as usize).unwrap()
-                    // });
-
-                    // if sat_check && unsat_groups.contains(group_index) {
-                    //     groups_sat_at_assignment[assigned.len() - 1].push(group_index);
-                    // }
-
                     or_check
                 });
 
@@ -431,24 +419,22 @@ impl Solver {
 
             // if check is true, push the next variable to be assigned
             if check {
-                for group in self.variable_connections.get(pos).unwrap().iter() {
-                    let group_index = group;
+                let mut sat_connections_checked = 0;
+                for group_index in self.variable_connections.get(pos).unwrap().iter() {
 
-                    let group = self.connection_groups.get(*group).unwrap();
+                    let group = self.connection_groups.get(*group_index).unwrap();
 
                     let sat_check = group.connections.iter().any(|con| {
-                        connections_checked += 1;
+                        sat_connections_checked += 1;
                         self.check_connection_not_null(*con as usize).unwrap()
                     });
 
                     if sat_check && unsat_groups.contains(group_index) {
                         groups_sat_at_assignment[assigned.len() - 1].push(group_index);
+                        unsat_groups.remove(group_index);
                     }
                 }
-                
-                for i in 0..groups_sat_at_assignment[assigned.len() - 1].len() {
-                    unsat_groups.remove(groups_sat_at_assignment[assigned.len() - 1][i]);
-                }
+                self.connections_checked += sat_connections_checked;
 
                 let next_cur = self.get_next_cur(&unsat_groups);
 
