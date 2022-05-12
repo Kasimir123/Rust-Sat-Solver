@@ -411,7 +411,7 @@ impl Solver {
                 for group_index in self.variable_connections.get(pos).unwrap().iter() {
                     let group = self.connection_groups.get(*group_index).unwrap();
                     let or_check = group.connections.iter().any(|con| {
-                        // connections_checked += 1;
+                        connections_checked += 1;
                         self.check_connection(*con as usize).unwrap()
                     });
                     if !or_check {

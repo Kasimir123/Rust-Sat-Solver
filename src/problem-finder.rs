@@ -19,7 +19,7 @@ fn main() {
         solver
             .load_cnf(benchmark_file)
             .expect("failed to parse benchmark file");
-        println!("Name: {}", path.unwrap().path().display());
+        // println!("Name: {}", path.unwrap().path().display());
         solver.solve();
     }
     println!("Success!");
