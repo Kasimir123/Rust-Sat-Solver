@@ -345,9 +345,9 @@ impl Solver {
         }
         let mut lcv_status: Option<bool>;
 
-        let mut conflict_sets: Vec<BTreeSet<usize>> = Vec::new();
+        let mut conflict_set: Vec<BTreeSet<usize>> = Vec::new();
         for _i in 0..self.variables.len() {
-            conflict_sets.push(BTreeSet::new());
+            conflict_set.push(BTreeSet::new());
         }
 
         // while we have at least one value to be assigned
@@ -408,7 +408,7 @@ impl Solver {
                         for con in group.connections.iter() {
                             let con = self.connections.get(*con).unwrap();
                             if con.var_pos != pos {
-                                conflict_sets[pos].insert(con.var_pos);
+                                conflict_set[pos].insert(con.var_pos);
                             }
                         }
                     }
@@ -448,7 +448,7 @@ impl Solver {
                 }
 
                 assigned.push(next_cur.cur.unwrap());
-                conflict_sets[assigned[assigned.len() - 1]].clear();
+                conflict_set[assigned[assigned.len() - 1]].clear();
             }
 
             // need a case in the following while to deal with exhausted first variable (unsatisfiable)
@@ -458,14 +458,14 @@ impl Solver {
                 let mut assignment = assigned[assigned.len() - 1];
                 if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {
                     loop {
-                        if conflict_sets[assignment].contains(&assigned[assigned.len() - 1])
+                        if conflict_set[assignment].contains(&assigned[assigned.len() - 1])
                         {
                             let mut temp: Vec<usize> = Vec::new();
-                            for conflict in conflict_sets[assignment].iter() {
+                            for conflict in conflict_set[assignment].iter() {
                                 temp.push(*conflict);
                             }
                             for temp_var in temp.iter() {
-                                conflict_sets[assigned[assigned.len() - 1]].insert(*temp_var);
+                                conflict_set[assigned[assigned.len() - 1]].insert(*temp_var);
                             }
                             assignment = assigned[assigned.len() - 1];
                             if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(false))) {
