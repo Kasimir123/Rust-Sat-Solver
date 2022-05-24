@@ -273,15 +273,17 @@ impl Solver {
         }
     }
 
-    pub fn get_lcv(&self, cur: &Variable) -> bool {
+    pub fn get_lcv(&self, cur: &Variable, the_clone: &BTreeSet<usize>) -> bool {
         let mut connections_checked = 0;
 
         let mut literal_sign: bool;
         let mut var_score = 0;
 
-        for i in 0..self.variable_connections[cur.pos].len() {
-            let group_index = self.variable_connections[cur.pos][i];
-            let group = self.connection_groups.get(group_index).unwrap();
+        for group_index in the_clone {
+            let group = self.connection_groups.get(*group_index).unwrap();
+        // for i in 0..self.variable_connections[cur.pos].len() {
+        //     let group_index = self.variable_connections[cur.pos][i];
+        //     let group = self.connection_groups.get(group_index).unwrap();
             let or_check = group.connections.iter().any(|con| {
                 connections_checked += 1;
                 self.check_connection_not_null(*con as usize).unwrap()
@@ -364,6 +366,8 @@ impl Solver {
 
             // gets the variables position
             let pos = cur.pos;
+            
+            let the_clone = variable_unsat_groups[pos].clone();
 
             let new_val: Option<bool>;
             if !next_cur.is_uc {
@@ -380,7 +384,7 @@ impl Solver {
                     _ => unreachable!(),
                 }
                 new_val = match lcv_status {
-                    Some(false) => Some(self.get_lcv(cur)),
+                    Some(false) => Some(self.get_lcv(cur, &the_clone)),
                     Some(true) => Some(!cur.value.unwrap()),
                     _ => unreachable!(),
                 };
@@ -397,7 +401,6 @@ impl Solver {
             // loop through connections and perform out checks
 
             let mut check = true;
-            let the_clone = variable_unsat_groups[pos].clone();
             for group_index in the_clone {
 
                 let group = self.connection_groups.get(group_index).unwrap();
