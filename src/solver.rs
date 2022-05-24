@@ -418,6 +418,7 @@ impl Solver {
 
                 if !or_check {
                     check = false;
+                    break;
                 }
             };
 
