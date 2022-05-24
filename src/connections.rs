@@ -1,3 +1,4 @@
+#[derive(Copy, Clone)]
 pub struct Connection {
     pub val: bool,
     pub var_pos: usize,
@@ -9,7 +10,7 @@ impl Connection {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ConnectionGroup {
     pub connections: Vec<usize>,
 }

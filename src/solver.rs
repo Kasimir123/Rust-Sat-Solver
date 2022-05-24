@@ -315,12 +315,22 @@ impl Solver {
         let mut assigned = Vec::new();
 
         let mut unsat_groups: BTreeSet<usize> = BTreeSet::new();
-        let mut groups_sat_at_assignment: Vec<Vec<&usize>> = Vec::new();
+        let mut groups_sat_at_assignment: Vec<Vec<usize>> = Vec::new();
         for _i in 0..self.variables.len() {
             groups_sat_at_assignment.push(Vec::new());
         }
         for i in 0..self.connection_groups.len() {
             unsat_groups.insert(i);
+        }
+
+        let mut variable_unsat_groups: Vec<BTreeSet<usize>> = Vec::new();
+        for i in 0..self.variables.len() {
+            let mut var_con_set = BTreeSet::new();
+            let var_cons = self.variable_connections.get(i).unwrap();
+            for group in var_cons.iter() {
+                var_con_set.insert(*group);
+            }
+            variable_unsat_groups.push(var_con_set);
         }
 
         // push the first value into the assigned values
@@ -386,41 +396,43 @@ impl Solver {
 
             // loop through connections and perform out checks
 
-            let check = self
-                .variable_connections
-                .get(pos)
-                .unwrap()
-                .iter()
-                .all(|group| {
-                    let group_index = group;
+            let mut check = true;
+            let the_clone = variable_unsat_groups[pos].clone();
+            for group_index in the_clone {
 
-                    let group = self.connection_groups.get(*group).unwrap();
+                let group = self.connection_groups.get(group_index).unwrap();
 
-                    let or_check = group.connections.iter().any(|con| {
-                        connections_checked += 1;
-                        self.check_connection(*con as usize).unwrap()
-                    });
-
-                    let sat_check = group.connections.iter().any(|con| {
-                        connections_checked += 1;
-                        self.check_connection_not_null(*con as usize).unwrap()
-                    });
-
-                    if sat_check && unsat_groups.contains(group_index) {
-                        groups_sat_at_assignment[assigned.len() - 1].push(group_index);
-                    }
-
-                    or_check
+                let or_check = group.connections.iter().any(|con| {
+                    connections_checked += 1;
+                    self.check_connection(*con as usize).unwrap()
                 });
+
+                let sat_check = group.connections.iter().any(|con| {
+                    connections_checked += 1;
+                    self.check_connection_not_null(*con as usize).unwrap()
+                });
+
+                if sat_check && unsat_groups.contains(&group_index) {
+                    groups_sat_at_assignment[assigned.len() - 1].push(group_index);
+                }
+
+                if !or_check {
+                    check = false;
+                }
+            };
 
             self.connections_checked += connections_checked;
 
             // if check is true, push the next variable to be assigned
             if check {
                 for i in 0..groups_sat_at_assignment[assigned.len() - 1].len() {
-                    unsat_groups.remove(groups_sat_at_assignment[assigned.len() - 1][i]);
-                    // sat_groups
-                    //     .insert(*groups_sat_at_assignment[assigned.len() - 1][i]);
+                    let group = groups_sat_at_assignment[assigned.len() - 1][i];
+                    unsat_groups.remove(&group);
+                    let con_group = self.connection_groups.get(group).unwrap();
+                    for con in con_group.connections.iter() {
+                        let var = self.connections.get(*con).unwrap().var_pos;
+                        variable_unsat_groups[var].remove(&group);
+                    }
                 }
 
                 let next_cur = self.get_next_cur(&unsat_groups);
@@ -442,7 +454,13 @@ impl Solver {
                 while matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {
                     var_exhausted[assigned.len() - 1] = None;
                     for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
-                        unsat_groups.insert(*groups_sat_at_assignment[assigned.len() - 2][i]);
+                        let group = groups_sat_at_assignment[assigned.len() - 2][i];
+                        unsat_groups.insert(group);
+                        let con_group = self.connection_groups.get(group).unwrap();
+                        for con in con_group.connections.iter() {
+                            let var = self.connections.get(*con).unwrap().var_pos;
+                            variable_unsat_groups[var].insert(group);
+                        }
                     }
                     let assigned_last = assigned.pop().unwrap();
                     self.variables[assigned_last].value = None;
