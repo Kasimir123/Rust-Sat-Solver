@@ -1,12 +1,16 @@
 // import out structs
 use crate::connections::{Connection, ConnectionGroup};
 use crate::variable::Variable;
+use crate::conflict_set::ConflictSet;
+use crate::var_unsat::VarUnsatGroups;
 
 // import required imports
 use std::collections::BTreeSet;
 use std::error::Error;
 use std::io::{BufRead, BufReader, Read};
 
+use deepmesa::lists::linkedlist::Node;
+use  deepmesa::lists::LinkedList;
 
 // Struct for the response from solve
 pub struct SolveResult {
@@ -22,6 +26,13 @@ pub struct CurResult {
     pub connections_checked: usize,
     pub is_uc: bool,
     pub literal_sign: Option<bool>,
+}
+
+pub struct CheckResult {
+    pub check: bool,
+    pub groups_sat: Vec<usize>,
+    pub connections_checked: usize,
+    pub min_group_index: Option<usize>,
 }
 
 #[derive(Default)]
@@ -194,6 +205,7 @@ impl Solver {
     }
 
     pub fn get_next_cur(&self, unsat_groups: &BTreeSet<usize>) -> CurResult {
+        // println!("num unsat_groups {}", unsat_groups.len());
         let mut set = false;
         let mut min_con: Option<usize> = None;
         let mut min_val: Option<usize> = None;
@@ -201,6 +213,7 @@ impl Solver {
         let mut is_uc: bool = false;
 
         for i in unsat_groups.iter() {
+            // println!("iter");
             let group = self.connection_groups.get(*i).unwrap();
 
             let mut count = 0;
@@ -216,6 +229,7 @@ impl Solver {
                 }
             }
             if !set {
+                // println!("set");
                 set = true;
                 min_con = Some(*i);
                 min_val = Some(count);
@@ -252,6 +266,7 @@ impl Solver {
                     .variables
                     .get(self.connections.get(*con).unwrap().var_pos)
                     .unwrap();
+                // println!("{}", var.value == None);
                 if var.value == None {
                     is_uc = min_val.unwrap() == 1;
                     return CurResult {
@@ -264,6 +279,7 @@ impl Solver {
                 }
             }
         }
+        // println!("test");
         CurResult {
             set: false,
             cur: None,
@@ -273,15 +289,17 @@ impl Solver {
         }
     }
 
-    pub fn get_lcv(&self, cur: &Variable) -> bool {
+    pub fn get_lcv(&self, cur: &Variable, variable_unsat_groups: &LinkedList<usize>) -> bool {
         let mut connections_checked = 0;
 
         let mut literal_sign: bool;
         let mut var_score = 0;
 
-        for i in 0..self.variable_connections[cur.pos].len() {
-            let group_index = self.variable_connections[cur.pos][i];
-            let group = self.connection_groups.get(group_index).unwrap();
+        for group_index in variable_unsat_groups.iter() {
+            let group = self.connection_groups.get(*group_index).unwrap();
+        // for i in 0..self.variable_connections[cur.pos].len() {
+        //     let group_index = self.variable_connections[cur.pos][i];
+        //     let group = self.connection_groups.get(group_index).unwrap();
             let or_check = group.connections.iter().any(|con| {
                 connections_checked += 1;
                 self.check_connection_not_null(*con as usize).unwrap()
@@ -309,13 +327,70 @@ impl Solver {
         var_score >= 0
     }
 
+    pub fn do_check(&self,  unsat_groups: &BTreeSet<usize>, var_assigned_index: &Vec<usize>, pos: &usize, variable_unsat_groups: &LinkedList<usize>) -> CheckResult {
+        // println!("{}", variable_unsat_groups.len());
+        let mut check = true;
+        let mut connections_checked = 0;
+        let mut groups_sat: Vec<usize> = Vec::new();
+        let mut min_group_index: Option<usize> = None;
+        let mut min_var_assiged_indices: Vec<usize> = Vec::new();
+        for group_index in variable_unsat_groups.iter() {
+
+            let group = self.connection_groups.get(*group_index).unwrap();
+
+            let or_check = group.connections.iter().any(|con| {
+                connections_checked += 1;
+                self.check_connection(*con as usize).unwrap()
+            });
+
+            let sat_check = group.connections.iter().any(|con| {
+                connections_checked += 1;
+                self.check_connection_not_null(*con as usize).unwrap()
+            });
+
+            if sat_check && unsat_groups.contains(&group_index) {
+                groups_sat.push(*group_index);
+            }
+
+            if !or_check {
+                check = false;
+                if matches!(min_group_index, None) {
+                    let group = self.connection_groups.get(*group_index).unwrap();
+                    for con in group.connections.iter() {
+                        if self.connections.get(*con).unwrap().var_pos == *pos {continue;}
+                        min_group_index = Some(*group_index);
+                        min_var_assiged_indices.push(var_assigned_index[self.connections.get(*con).unwrap().var_pos]);
+                    }
+                } else {
+                    let mut pos_var_assiged_indices: Vec<usize> = Vec::new();
+                    let group = self.connection_groups.get(*group_index).unwrap();
+                    for con in group.connections.iter() {
+                        if self.connections.get(*con).unwrap().var_pos == *pos {continue;}
+                        pos_var_assiged_indices.push(var_assigned_index[self.connections.get(*con).unwrap().var_pos]);
+                    }
+                    if pos_var_assiged_indices.iter().max() < min_var_assiged_indices.iter().max() {
+                        min_group_index = Some(*group_index);
+                        min_var_assiged_indices = pos_var_assiged_indices;
+                    }
+                }
+            }
+        };
+        // println!("{}", groups_sat.len());
+        CheckResult {
+            check,
+            groups_sat,
+            connections_checked,
+            min_group_index,
+        }
+    }
+
     // solves the sat problem
     pub fn solve(&mut self) -> SolveResult {
         // initialize a vector to hold assigned values
         let mut assigned = Vec::new();
 
         let mut unsat_groups: BTreeSet<usize> = BTreeSet::new();
-        let mut groups_sat_at_assignment: Vec<Vec<&usize>> = Vec::new();
+        let mut groups_sat_at_assignment: Vec<Vec<usize>> = Vec::new();
         for _i in 0..self.variables.len() {
             groups_sat_at_assignment.push(Vec::new());
         }
@@ -323,8 +398,24 @@ impl Solver {
             unsat_groups.insert(i);
         }
 
+        // println!("{}", self.connection_groups.len());
+        let mut variable_unsat_groups = VarUnsatGroups::new(&self.variable_connections);
+        // let mut variable_unsat_groups: Vec<BTreeSet<usize>> = Vec::new();
+        // // let mut refs: Vec<&BTreeSet<usize>> = Vec::new();
+        // // let mut dummy: Vec<BTreeSet<usize>> = Vec::new();
+        // for i in 0..self.variables.len() {
+        //     let mut var_con_set = BTreeSet::new();
+        //     let var_cons = self.variable_connections.get(i).unwrap();
+        //     for group in var_cons.iter() {
+        //         var_con_set.insert(*group);
+        //     }
+        //     variable_unsat_groups.push(var_con_set);
+        // }
+
         // push the first value into the assigned values
         let next_cur = self.get_next_cur(&unsat_groups);
+
+        // println!("{}", variable_unsat_groups.var_lists[next_cur.cur.unwrap()].len());
 
         self.connections_checked += next_cur.connections_checked;
 
@@ -345,10 +436,11 @@ impl Solver {
         }
         let mut lcv_status: Option<bool>;
 
-        let mut conflict_set: Vec<BTreeSet<usize>> = Vec::new();
-        for _i in 0..self.variables.len() {
-            conflict_set.push(BTreeSet::new());
-        }
+        let mut conflict_set: ConflictSet = ConflictSet::new();
+        // let mut conflict_set: Vec<BTreeSet<usize>> = Vec::new();
+        // for _i in 0..self.variables.len() {
+        //     conflict_set.push(BTreeSet::new());
+        // }
 
         let mut var_assigned_index: Vec<usize> = Vec::new();
         for _i in 0..self.variables.len() {
@@ -357,14 +449,13 @@ impl Solver {
 
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
+            // println!("{}", assigned.len());
             // gets the variable to assigned
             let cur = self.variables.get(*assigned.last().unwrap()).unwrap();
 
-            let mut connections_checked = 0;
-
             // gets the variables position
             let pos = cur.pos;
-
+            
             let new_val: Option<bool>;
             if !next_cur.is_uc {
                 // check to see if lcv has been tried
@@ -380,7 +471,7 @@ impl Solver {
                     _ => unreachable!(),
                 }
                 new_val = match lcv_status {
-                    Some(false) => Some(self.get_lcv(cur)),
+                    Some(false) => Some(self.get_lcv(cur, &variable_unsat_groups.var_lists[pos])),
                     Some(true) => Some(!cur.value.unwrap()),
                     _ => unreachable!(),
                 };
@@ -396,114 +487,43 @@ impl Solver {
 
             // loop through connections and perform out checks
 
-            let mut check = true;
-            let mut min_group_index: Option<usize> = None;
-            let mut min_var_assiged_indices: Vec<usize> = Vec::new();
-            for group_index in self.variable_connections.get(pos).unwrap().iter() {
-                let group = self.connection_groups.get(*group_index).unwrap();
-                let or_check = group.connections.iter().any(|con| {
-                    connections_checked += 1;
-                    self.check_connection(*con as usize).unwrap()
-                });
-                if !or_check {
-                    if matches!(min_group_index, None) {
-                        let group = self.connection_groups.get(*group_index).unwrap();
-                        for con in group.connections.iter() {
-                            if self.connections.get(*con).unwrap().var_pos == pos {continue;}
-                            min_group_index = Some(*group_index);
-                            // for i in 0..var_assigned_index.len() {
-                            //     println!("{}", var_assigned_index[i]);
-                            // }
-                            min_var_assiged_indices.push(var_assigned_index[self.connections.get(*con).unwrap().var_pos]);
-                        }
-                    } else {
-                        let mut pos_var_assiged_indices: Vec<usize> = Vec::new();
-                        let group = self.connection_groups.get(*group_index).unwrap();
-                        for con in group.connections.iter() {
-                            if self.connections.get(*con).unwrap().var_pos == pos {continue;}
-                            pos_var_assiged_indices.push(var_assigned_index[self.connections.get(*con).unwrap().var_pos]);
-                        }
-                        if pos_var_assiged_indices.iter().max() < min_var_assiged_indices.iter().max() {
-                            min_group_index = Some(*group_index);
-                            min_var_assiged_indices = pos_var_assiged_indices;
-                        }
-                    }
-                    check = false;
-                    break;
-                }
-            }
+            let check_result = self.do_check(&unsat_groups, &var_assigned_index, &pos, &variable_unsat_groups.var_lists[pos]);
+            let check = check_result.check;
 
             if !check {
-                for con in self.connection_groups.get(min_group_index.unwrap()).unwrap().connections.iter() {
+                for con in self.connection_groups.get(check_result.min_group_index.unwrap()).unwrap().connections.iter() {
                     let con = self.connections.get(*con).unwrap();
                     if con.var_pos != pos {
-                        conflict_set[pos].insert(con.var_pos);
+                        if !conflict_set.var_set[pos][con.var_pos] {
+                            conflict_set.var_list[pos][conflict_set.list_len[pos]] = con.var_pos;
+                            conflict_set.list_len[pos] += 1;
+                            conflict_set.var_set[pos][con.var_pos] = true;
+                        }
                     }
                 }
             }
 
-            // let mut min_group_index: Option<usize> = None;
-            // if !check {
-            //     for group_index in self.variable_connections.get(pos).unwrap().iter() {
-            //         let group = self.connection_groups.get(*group_index).unwrap();
-            //         let or_check = group.connections.iter().any(|con| {
-            //             connections_checked += 1;
-            //             self.check_connection(*con as usize).unwrap()
-            //         });
-            //         if !or_check {
-            //             if matches!(min_group_index, None) {
-            //                 min_group_index = Some(*group_index);
-            //             } else {
-            //                 let mut min_var_assiged_indices: Vec<usize> = Vec::new();
-            //                 let mut pos_var_assiged_indices: Vec<usize> = Vec::new();
-            //                 let group = self.connection_groups.get(*group_index).unwrap();
-            //                 for con in group.connections.iter() {
-            //                     if self.connections.get(*con).unwrap().var_pos == pos {continue;}
-            //                     for i in 0..assigned.len() {
-            //                         if assigned[i] == self.connections.get(*con).unwrap().var_pos {
-            //                             pos_var_assiged_indices.push(i);
-            //                         }
-            //                     }
-            //                 }
-            //                 let group = self.connection_groups.get(min_group_index.unwrap()).unwrap();
-            //                 for con in group.connections.iter() {
-            //                     if self.connections.get(*con).unwrap().var_pos == pos {continue;}
-            //                     for i in 0..assigned.len() {
-            //                         if assigned[i] == self.connections.get(*con).unwrap().var_pos {
-            //                             min_var_assiged_indices.push(i);
-            //                         }
-            //                     }
-            //                 }
-            //                 if pos_var_assiged_indices.iter().max() < min_var_assiged_indices.iter().max() {
-            //                     min_group_index = Some(*group_index);
-            //                 }
-            //             }
-            //         }
-            //     }
-            //     for con in self.connection_groups.get(min_group_index.unwrap()).unwrap().connections.iter() {
-            //         let con = self.connections.get(*con).unwrap();
-            //         if con.var_pos != pos {
-            //             conflict_set[pos].insert(con.var_pos);
-            //         }
-            //     }
-            // }
-
-            self.connections_checked += connections_checked;
+            self.connections_checked += check_result.connections_checked;
 
             // if check is true, push the next variable to be assigned
             if check {
-                let mut is_sat_connections_checked = 0;
-                for group_index in self.variable_connections.get(pos).unwrap().iter() {
-                    let group = self.connection_groups.get(*group_index).unwrap();
-
-                    let sat_check = group.connections.iter().any(|con| {
-                        is_sat_connections_checked += 1;
-                        self.check_connection_not_null(*con as usize).unwrap()
-                    });
-
-                    if sat_check && unsat_groups.contains(group_index) {
-                        groups_sat_at_assignment[assigned.len() - 1].push(group_index);
-                        unsat_groups.remove(group_index);
+                for group_sat in check_result.groups_sat.iter() {
+                    groups_sat_at_assignment[assigned.len() - 1].push(*group_sat);
+                }
+                for i in 0..groups_sat_at_assignment[assigned.len() - 1].len() {
+                    let group = groups_sat_at_assignment[assigned.len() - 1][i];
+                    // println!("{}", unsat_groups.len());
+                    unsat_groups.remove(&group);
+                    // println!("{}", unsat_groups.len());
+                    let con_group = self.connection_groups.get(group).unwrap();
+                    for con in con_group.connections.iter() {
+                        let var = self.connections.get(*con).unwrap().var_pos;
+                        let mut var_unsat_group = variable_unsat_groups.var_sets[var][group];
+                        let node = var_unsat_group.node.unwrap();
+                        var_unsat_group.is_unsat = false;
+                        // println!("{}", variable_unsat_groups.var_lists[var].len());
+                        variable_unsat_groups.var_lists[var].pop_node(&node);
+                        // println!("{}", variable_unsat_groups.var_lists[var].len());
                     }
                 }
                 self.connections_checked += is_sat_connections_checked;
@@ -513,6 +533,7 @@ impl Solver {
                 self.connections_checked += next_cur.connections_checked;
 
                 if !next_cur.set {
+                    // println!("test");
                     return SolveResult {
                         sat: true,
                         connections_checked: self.connections_checked as u64,
@@ -520,9 +541,14 @@ impl Solver {
                     };
                 }
 
-                assigned.push(next_cur.cur.unwrap());
-                conflict_set[assigned[assigned.len() - 1]].clear();
-                var_assigned_index[next_cur.cur.unwrap()] = assigned.len() - 1;
+                let next_var_pos = next_cur.cur.unwrap();
+                assigned.push(next_var_pos);
+                for i in 0..conflict_set.list_len[next_var_pos] {
+                    conflict_set.var_set[next_var_pos][conflict_set.var_list[next_var_pos][i]] = false;
+                }
+                conflict_set.list_len[next_var_pos] = 0;
+                // conflict_set[assigned[assigned.len() - 1]].clear();
+                var_assigned_index[next_var_pos] = assigned.len() - 1;
             }
 
             // need a case in the following while to deal with exhausted first variable (unsatisfiable)
@@ -532,14 +558,24 @@ impl Solver {
                 let mut assignment = assigned[assigned.len() - 1];
                 if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {
                     loop {
-                        if conflict_set[assignment].contains(&assigned[assigned.len() - 1])
-                        {
-                            let mut temp: Vec<usize> = Vec::new();
-                            for conflict in conflict_set[assignment].iter() {
-                                temp.push(*conflict);
-                            }
-                            for temp_var in temp.iter() {
-                                conflict_set[assigned[assigned.len() - 1]].insert(*temp_var);
+                        // println!("{}", assigned.len());
+                        // if conflict_set[assignment].contains(&assigned[assigned.len() - 1])
+                        if conflict_set.var_set[assignment][assigned[assigned.len() - 1]] {
+                            // let mut temp: Vec<usize> = Vec::new();
+                            // for conflict in conflict_set[assignment].iter() {
+                            //     temp.push(*conflict);
+                            // }
+                            // for temp_var in temp.iter() {
+                            //     conflict_set[assigned[assigned.len() - 1]].insert(*temp_var);
+                            // }
+                            for i in 0..conflict_set.list_len[assignment] {
+                                let move_conflict = conflict_set.var_list[assignment][i];
+                                let last_var = assigned[assigned.len() - 1];
+                                if !conflict_set.var_set[last_var][move_conflict] {
+                                    conflict_set.var_list[last_var][conflict_set.list_len[last_var]] = move_conflict;
+                                    conflict_set.list_len[last_var] += 1;
+                                    conflict_set.var_set[last_var][move_conflict] = true;
+                                }
                             }
                             assignment = assigned[assigned.len() - 1];
                             // do I need to remove assignment from its own conflict set?
@@ -549,7 +585,15 @@ impl Solver {
                         }
                         var_exhausted[assigned.len() - 1] = None;
                         for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
-                            unsat_groups.insert(*groups_sat_at_assignment[assigned.len() - 2][i]);
+                            let group = groups_sat_at_assignment[assigned.len() - 2][i];
+                            unsat_groups.insert(group);
+                            let con_group = self.connection_groups.get(group).unwrap();
+                            for con in con_group.connections.iter() {
+                                let var = self.connections.get(*con).unwrap().var_pos;
+                                let node: Node<usize> = variable_unsat_groups.var_lists[var].push_head(group);
+                                variable_unsat_groups.var_sets[var][group].node = Some(node);
+                                variable_unsat_groups.var_sets[var][group].is_unsat = true;
+                            }
                         }
                         let to_reset = assigned.pop().unwrap();
                         self.variables[to_reset].value = None;

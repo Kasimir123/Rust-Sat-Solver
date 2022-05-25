@@ -6,13 +6,23 @@
 pub mod connections;
 pub mod solver;
 pub mod variable;
+<<<<<<< HEAD
+=======
+pub mod conflict_set;
+pub mod var_unsat;
+>>>>>>> backjumping2-avoiding-stack-overflow
 use solver::Solver;
 use std::fs;
 use std::fs::File;
 fn main() {
     let mut solver = Solver::new();
+<<<<<<< HEAD
     // let paths = fs::read_dir("./../benchmark-cases/20-sat/").unwrap();
     let paths = fs::read_dir("./../benchmark-cases/50-sat/").unwrap();
+=======
+    let paths = fs::read_dir("./../benchmark-cases/20-sat/").unwrap();
+    // let paths = fs::read_dir("./../benchmark-cases/50-sat/").unwrap();
+>>>>>>> backjumping2-avoiding-stack-overflow
     for path in paths {
         let f = path.as_ref().unwrap().path();
         let benchmark_file = File::open(f).expect("failed to open benchmark file");
