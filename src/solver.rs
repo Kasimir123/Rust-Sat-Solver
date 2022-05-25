@@ -201,6 +201,7 @@ impl Solver {
     }
 
     pub fn get_next_cur(&self, unsat_groups: &BTreeSet<usize>) -> CurResult {
+        println!("num unsat_groups {}", unsat_groups.len());
         let mut set = false;
         let mut min_con: Option<usize> = None;
         let mut min_val: Option<usize> = None;
@@ -208,6 +209,7 @@ impl Solver {
         let mut is_uc: bool = false;
 
         for i in unsat_groups.iter() {
+            // println!("iter");
             let group = self.connection_groups.get(*i).unwrap();
 
             let mut count = 0;
@@ -223,6 +225,7 @@ impl Solver {
                 }
             }
             if !set {
+                // println!("set");
                 set = true;
                 min_con = Some(*i);
                 min_val = Some(count);
@@ -259,6 +262,7 @@ impl Solver {
                     .variables
                     .get(self.connections.get(*con).unwrap().var_pos)
                     .unwrap();
+                // println!("{}", var.value == None);
                 if var.value == None {
                     is_uc = min_val.unwrap() == 1;
                     return CurResult {
@@ -271,6 +275,7 @@ impl Solver {
                 }
             }
         }
+        // println!("test");
         CurResult {
             set: false,
             cur: None,
@@ -433,6 +438,7 @@ impl Solver {
 
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
+            // println!("{}", assigned.len());
             // gets the variable to assigned
             let cur = self.variables.get(*assigned.last().unwrap()).unwrap();
 
@@ -505,6 +511,7 @@ impl Solver {
                 self.connections_checked += next_cur.connections_checked;
 
                 if !next_cur.set {
+                    // println!("test");
                     return SolveResult {
                         sat: true,
                         connections_checked: self.connections_checked as u64,
@@ -521,6 +528,7 @@ impl Solver {
                 let mut assignment = assigned[assigned.len() - 1];
                 if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {
                     loop {
+                        // println!("{}", assigned.len());
                         if conflict_set[assignment].contains(&assigned[assigned.len() - 1])
                         {
                             let mut temp: Vec<usize> = Vec::new();
@@ -545,21 +553,6 @@ impl Solver {
                         self.backtracks += 1;
                     }
                 }
-                // while matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {
-                //     var_exhausted[assigned.len() - 1] = None;
-                //     for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
-                //         let group = groups_sat_at_assignment[assigned.len() - 2][i];
-                //         unsat_groups.insert(group);
-                //         let con_group = self.connection_groups.get(group).unwrap();
-                //         for con in con_group.connections.iter() {
-                //             let var = self.connections.get(*con).unwrap().var_pos;
-                //             variable_unsat_groups[var].insert(group);
-                //         }
-                //     }
-                //     let assigned_last = assigned.pop().unwrap();
-                //     self.variables[assigned_last].value = None;
-                //     self.backtracks += 1;
-                // }
             }
         }
 
