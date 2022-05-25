@@ -19,8 +19,8 @@ fn main() {
 
 
     // // make sure everything completes
-    // let paths = fs::read_dir("./benchmark-cases/20-sat/").unwrap();
-    // // let paths = fs::read_dir("./benchmark-cases/50-sat/").unwrap();
+    // // let paths = fs::read_dir("./benchmark-cases/20-sat/").unwrap();
+    // let paths = fs::read_dir("./benchmark-cases/50-sat/").unwrap();
     // for path in paths {
     //     let mut solver = Solver::new();
     //     let f = path.as_ref().unwrap().path();
@@ -30,6 +30,9 @@ fn main() {
     //         .expect("failed to parse benchmark file");
     //     // println!("Name: {}", path.unwrap().path().display());
     //     solver.solve();
+    //     if !solver.final_check() {
+    //         println!("Failed: {}", path.unwrap().path().display());
+    //     }
     // }
     // println!("Success!");
 

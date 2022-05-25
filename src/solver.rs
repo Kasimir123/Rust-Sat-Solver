@@ -526,7 +526,6 @@ impl Solver {
                         // println!("{}", variable_unsat_groups.var_lists[var].len());
                     }
                 }
-                self.connections_checked += is_sat_connections_checked;
 
                 let next_cur = self.get_next_cur(&unsat_groups);
 
