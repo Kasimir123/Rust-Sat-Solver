@@ -28,6 +28,7 @@ pub struct CheckResult {
     pub check: bool,
     pub groups_sat: Vec<usize>,
     pub connections_checked: usize,
+    pub min_group_index: Option<usize>,
 }
 
 #[derive(Default)]
@@ -317,10 +318,12 @@ impl Solver {
         var_score >= 0
     }
 
-    pub fn do_check(&self, variable_unsat_groups: &BTreeSet<usize>, unsat_groups: &BTreeSet<usize>) -> CheckResult {
+    pub fn do_check(&self, variable_unsat_groups: &BTreeSet<usize>, unsat_groups: &BTreeSet<usize>, var_assigned_index: &Vec<usize>, pos: &usize) -> CheckResult {
         let mut check = true;
         let mut connections_checked = 0;
         let mut groups_sat: Vec<usize> = Vec::new();
+        let mut min_group_index: Option<usize> = None;
+        let mut min_var_assiged_indices: Vec<usize> = Vec::new();
         for group_index in variable_unsat_groups {
 
             let group = self.connection_groups.get(*group_index).unwrap();
@@ -341,13 +344,32 @@ impl Solver {
 
             if !or_check {
                 check = false;
-                break;
+                if matches!(min_group_index, None) {
+                    let group = self.connection_groups.get(*group_index).unwrap();
+                    for con in group.connections.iter() {
+                        if self.connections.get(*con).unwrap().var_pos == *pos {continue;}
+                        min_group_index = Some(*group_index);
+                        min_var_assiged_indices.push(var_assigned_index[self.connections.get(*con).unwrap().var_pos]);
+                    }
+                } else {
+                    let mut pos_var_assiged_indices: Vec<usize> = Vec::new();
+                    let group = self.connection_groups.get(*group_index).unwrap();
+                    for con in group.connections.iter() {
+                        if self.connections.get(*con).unwrap().var_pos == *pos {continue;}
+                        pos_var_assiged_indices.push(var_assigned_index[self.connections.get(*con).unwrap().var_pos]);
+                    }
+                    if pos_var_assiged_indices.iter().max() < min_var_assiged_indices.iter().max() {
+                        min_group_index = Some(*group_index);
+                        min_var_assiged_indices = pos_var_assiged_indices;
+                    }
+                }
             }
         };
         CheckResult {
             check,
             groups_sat,
-            connections_checked
+            connections_checked,
+            min_group_index,
         }
     }
 
@@ -399,6 +421,16 @@ impl Solver {
         }
         let mut lcv_status: Option<bool>;
 
+        let mut conflict_set: Vec<BTreeSet<usize>> = Vec::new();
+        for _i in 0..self.variables.len() {
+            conflict_set.push(BTreeSet::new());
+        }
+
+        let mut var_assigned_index: Vec<usize> = Vec::new();
+        for _i in 0..self.variables.len() {
+            var_assigned_index.push(0);
+        }
+
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
             // gets the variable to assigned
@@ -438,8 +470,17 @@ impl Solver {
 
             // loop through connections and perform out checks
 
-            let check_result = self.do_check(&variable_unsat_groups[pos], &unsat_groups);
+            let check_result = self.do_check(&variable_unsat_groups[pos], &unsat_groups, &var_assigned_index, &pos);
             let check = check_result.check;
+
+            if !check {
+                for con in self.connection_groups.get(check_result.min_group_index.unwrap()).unwrap().connections.iter() {
+                    let con = self.connections.get(*con).unwrap();
+                    if con.var_pos != pos {
+                        conflict_set[pos].insert(con.var_pos);
+                    }
+                }
+            }
 
             self.connections_checked += check_result.connections_checked;
 
@@ -472,24 +513,53 @@ impl Solver {
                 }
 
                 assigned.push(next_cur.cur.unwrap());
+                conflict_set[assigned[assigned.len() - 1]].clear();
+                var_assigned_index[next_cur.cur.unwrap()] = assigned.len() - 1;
             }
             // else, if the value was false, go through and backtrack
             else {
-                while matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {
-                    var_exhausted[assigned.len() - 1] = None;
-                    for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
-                        let group = groups_sat_at_assignment[assigned.len() - 2][i];
-                        unsat_groups.insert(group);
-                        let con_group = self.connection_groups.get(group).unwrap();
-                        for con in con_group.connections.iter() {
-                            let var = self.connections.get(*con).unwrap().var_pos;
-                            variable_unsat_groups[var].insert(group);
+                let mut assignment = assigned[assigned.len() - 1];
+                if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {
+                    loop {
+                        if conflict_set[assignment].contains(&assigned[assigned.len() - 1])
+                        {
+                            let mut temp: Vec<usize> = Vec::new();
+                            for conflict in conflict_set[assignment].iter() {
+                                temp.push(*conflict);
+                            }
+                            for temp_var in temp.iter() {
+                                conflict_set[assigned[assigned.len() - 1]].insert(*temp_var);
+                            }
+                            assignment = assigned[assigned.len() - 1];
+                            // do I need to remove assignment from its own conflict set?
+                            if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(false))) {
+                                break;
+                            }
                         }
+                        var_exhausted[assigned.len() - 1] = None;
+                        for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
+                            unsat_groups.insert(groups_sat_at_assignment[assigned.len() - 2][i]);
+                        }
+                        let to_reset = assigned.pop().unwrap();
+                        self.variables[to_reset].value = None;
+                        self.backtracks += 1;
                     }
-                    let assigned_last = assigned.pop().unwrap();
-                    self.variables[assigned_last].value = None;
-                    self.backtracks += 1;
                 }
+                // while matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {
+                //     var_exhausted[assigned.len() - 1] = None;
+                //     for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
+                //         let group = groups_sat_at_assignment[assigned.len() - 2][i];
+                //         unsat_groups.insert(group);
+                //         let con_group = self.connection_groups.get(group).unwrap();
+                //         for con in con_group.connections.iter() {
+                //             let var = self.connections.get(*con).unwrap().var_pos;
+                //             variable_unsat_groups[var].insert(group);
+                //         }
+                //     }
+                //     let assigned_last = assigned.pop().unwrap();
+                //     self.variables[assigned_last].value = None;
+                //     self.backtracks += 1;
+                // }
             }
         }
 
