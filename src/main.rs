@@ -3,7 +3,7 @@ pub mod connections;
 pub mod solver;
 pub mod variable;
 pub mod conflict_set;
-pub mod var_unsat;
+pub mod sat_linked_hash_set;
 
 // import solver
 use solver::Solver;
@@ -51,8 +51,8 @@ fn main() {
     // let f = "./benchmark-cases/uf75.cnf";
     // let f = "./benchmark-cases/uf100.cnf";
     // let f = "./benchmark-cases/uf125.cnf";
-    let f = "./benchmark-cases/uf150.cnf";
-    // let f = "./benchmark-cases/uf175.cnf";
+    // let f = "./benchmark-cases/uf150.cnf";
+    let f = "./benchmark-cases/uf175.cnf";
     // let f = "./benchmark-cases/uf200.cnf";
     // let f = "./benchmark-cases/uf250.cnf";
     

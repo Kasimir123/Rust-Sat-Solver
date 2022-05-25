@@ -2,6 +2,7 @@
 use crate::connections::{Connection, ConnectionGroup};
 use crate::variable::Variable;
 use crate::conflict_set::ConflictSet;
+use crate::sat_linked_hash_set::SatLinkedHashSet;
 // use crate::var_unsat::VarUnsatGroups;
 
 // import required imports
