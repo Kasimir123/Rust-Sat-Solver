@@ -9,7 +9,7 @@ pub mod var_unsat;
 use solver::Solver;
 
 // import time for stats
-use std::fs;
+// use std::fs;
 use std::fs::File;
 use std::time::Instant;
 
