@@ -327,16 +327,17 @@ impl Solver {
         var_score >= 0
     }
 
-    pub fn do_check(&self,  unsat_groups: &BTreeSet<usize>, var_assigned_index: &Vec<usize>, pos: &usize, variable_unsat_groups: &LinkedList<usize>) -> CheckResult {
-        // println!("{}", variable_unsat_groups.len());
+    // pub fn do_check(&self,  unsat_groups: &BTreeSet<usize>, var_assigned_index: &Vec<usize>, pos: &usize, variable_unsat_groups: &LinkedList<usize>) -> CheckResult {
+    pub fn do_check(&self,  unsat_groups: &BTreeSet<usize>, var_assigned_index: &Vec<usize>, pos: &usize) -> CheckResult {
         let mut check = true;
         let mut connections_checked = 0;
         let mut groups_sat: Vec<usize> = Vec::new();
         let mut min_group_index: Option<usize> = None;
         let mut min_var_assiged_indices: Vec<usize> = Vec::new();
-        for group_index in variable_unsat_groups.iter() {
-
+        for group_index in self.variable_connections.get(*pos).unwrap().iter() {
             let group = self.connection_groups.get(*group_index).unwrap();
+        // for group_index in variable_unsat_groups.iter() {
+        //     let group = self.connection_groups.get(*group_index).unwrap();
 
             let or_check = group.connections.iter().any(|con| {
                 connections_checked += 1;
@@ -375,7 +376,6 @@ impl Solver {
                 }
             }
         };
-        // println!("{}", groups_sat.len());
         CheckResult {
             check,
             groups_sat,
@@ -398,19 +398,7 @@ impl Solver {
             unsat_groups.insert(i);
         }
 
-        // println!("{}", self.connection_groups.len());
-        let mut variable_unsat_groups = VarUnsatGroups::new(&self.variable_connections);
-        // let mut variable_unsat_groups: Vec<BTreeSet<usize>> = Vec::new();
-        // // let mut refs: Vec<&BTreeSet<usize>> = Vec::new();
-        // // let mut dummy: Vec<BTreeSet<usize>> = Vec::new();
-        // for i in 0..self.variables.len() {
-        //     let mut var_con_set = BTreeSet::new();
-        //     let var_cons = self.variable_connections.get(i).unwrap();
-        //     for group in var_cons.iter() {
-        //         var_con_set.insert(*group);
-        //     }
-        //     variable_unsat_groups.push(var_con_set);
-        // }
+        // let mut variable_unsat_groups = VarUnsatGroups::new(&self.variable_connections);
 
         // push the first value into the assigned values
         let next_cur = self.get_next_cur(&unsat_groups);
@@ -437,10 +425,6 @@ impl Solver {
         let mut lcv_status: Option<bool>;
 
         let mut conflict_set: ConflictSet = ConflictSet::new();
-        // let mut conflict_set: Vec<BTreeSet<usize>> = Vec::new();
-        // for _i in 0..self.variables.len() {
-        //     conflict_set.push(BTreeSet::new());
-        // }
 
         let mut var_assigned_index: Vec<usize> = Vec::new();
         for _i in 0..self.variables.len() {
@@ -449,7 +433,6 @@ impl Solver {
 
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
-            // println!("{}", assigned.len());
             // gets the variable to assigned
             let cur = self.variables.get(*assigned.last().unwrap()).unwrap();
 
@@ -486,8 +469,8 @@ impl Solver {
             groups_sat_at_assignment[assigned.len() - 1].clear();
 
             // loop through connections and perform out checks
-
-            let check_result = self.do_check(&unsat_groups, &var_assigned_index, &pos, &variable_unsat_groups.var_lists[pos]);
+            // let check_result = self.do_check(&unsat_groups, &var_assigned_index, &pos, &variable_unsat_groups.var_lists[pos]);
+            let check_result = self.do_check(&unsat_groups, &var_assigned_index, &pos);
             let check = check_result.check;
 
             if !check {
