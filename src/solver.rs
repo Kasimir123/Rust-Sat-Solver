@@ -279,13 +279,13 @@ impl Solver {
         }
     }
 
-    pub fn get_lcv(&self, cur: &Variable, ref_clone: &BTreeSet<usize>) -> bool {
+    pub fn get_lcv(&self, cur: &Variable, variable_unsat_groups: &BTreeSet<usize>) -> bool {
         let mut connections_checked = 0;
 
         let mut literal_sign: bool;
         let mut var_score = 0;
 
-        for group_index in ref_clone {
+        for group_index in variable_unsat_groups {
             let group = self.connection_groups.get(*group_index).unwrap();
         // for i in 0..self.variable_connections[cur.pos].len() {
         //     let group_index = self.variable_connections[cur.pos][i];
@@ -403,8 +403,6 @@ impl Solver {
         while !assigned.is_empty() {
             // gets the variable to assigned
             let cur = self.variables.get(*assigned.last().unwrap()).unwrap();
-
-            let mut connections_checked = 0;
 
             // gets the variables position
             let pos = cur.pos;
