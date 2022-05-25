@@ -27,8 +27,8 @@ fn main() {
     // let f = "./benchmark-cases/uf100.cnf";
     // let f = "./benchmark-cases/uf125.cnf";
     // let f = "./benchmark-cases/uf150.cnf";
-    let f = "./benchmark-cases/uf175.cnf";
-    // let f = "./benchmark-cases/uf200.cnf";
+    // let f = "./benchmark-cases/uf175.cnf";
+    let f = "./benchmark-cases/uf200.cnf";
     // let f = "./benchmark-cases/uf250.cnf";
     // let f = "./benchmark-cases/f600.cnf";
 
