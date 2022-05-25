@@ -328,6 +328,7 @@ impl Solver {
     }
 
     pub fn do_check(&self,  unsat_groups: &BTreeSet<usize>, var_assigned_index: &Vec<usize>, pos: &usize, variable_unsat_groups: &LinkedList<usize>) -> CheckResult {
+        // println!("{}", variable_unsat_groups.len());
         let mut check = true;
         let mut connections_checked = 0;
         let mut groups_sat: Vec<usize> = Vec::new();
@@ -374,6 +375,7 @@ impl Solver {
                 }
             }
         };
+        // println!("{}", groups_sat.len());
         CheckResult {
             check,
             groups_sat,
@@ -396,7 +398,8 @@ impl Solver {
             unsat_groups.insert(i);
         }
 
-        let mut variable_unsat_groups = VarUnsatGroups::new(self.connection_groups.len());
+        // println!("{}", self.connection_groups.len());
+        let mut variable_unsat_groups = VarUnsatGroups::new(&self.variable_connections);
         // let mut variable_unsat_groups: Vec<BTreeSet<usize>> = Vec::new();
         // // let mut refs: Vec<&BTreeSet<usize>> = Vec::new();
         // // let mut dummy: Vec<BTreeSet<usize>> = Vec::new();
@@ -411,6 +414,8 @@ impl Solver {
 
         // push the first value into the assigned values
         let next_cur = self.get_next_cur(&unsat_groups);
+
+        // println!("{}", variable_unsat_groups.var_lists[next_cur.cur.unwrap()].len());
 
         self.connections_checked += next_cur.connections_checked;
 
@@ -507,14 +512,18 @@ impl Solver {
                 }
                 for i in 0..groups_sat_at_assignment[assigned.len() - 1].len() {
                     let group = groups_sat_at_assignment[assigned.len() - 1][i];
+                    // println!("{}", unsat_groups.len());
                     unsat_groups.remove(&group);
+                    // println!("{}", unsat_groups.len());
                     let con_group = self.connection_groups.get(group).unwrap();
                     for con in con_group.connections.iter() {
                         let var = self.connections.get(*con).unwrap().var_pos;
                         let mut var_unsat_group = variable_unsat_groups.var_sets[var][group];
                         let node = var_unsat_group.node.unwrap();
                         var_unsat_group.is_unsat = false;
+                        // println!("{}", variable_unsat_groups.var_lists[var].len());
                         variable_unsat_groups.var_lists[var].pop_node(&node);
+                        // println!("{}", variable_unsat_groups.var_lists[var].len());
                     }
                 }
 

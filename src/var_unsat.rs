@@ -19,18 +19,18 @@ impl VarUnsatGroup {
 
 pub struct VarUnsatGroups {
     pub var_lists: Vec<LinkedList<usize>>,
-    pub var_sets: [[VarUnsatGroup; 218]; 50],
+    pub var_sets: [[VarUnsatGroup; 325]; 75],
 }
 
 impl VarUnsatGroups {
-    pub fn new(num_groups: usize) -> Self {
+    pub fn new(variable_connections: &Vec<Vec<usize>>) -> Self {
         let mut var_lists: Vec<LinkedList<usize>> = Vec::new();
-        let mut var_sets = [[VarUnsatGroup::new(); 218]; 50];
-        for i in 0..50 {
-            let mut var_list: LinkedList<usize> = LinkedList::<usize>::with_capacity(218);
-            for j in 0..num_groups {
-                let node: Node<usize> = var_list.push_head(j);
-                var_sets[i][j].node = Some(node);
+        let mut var_sets = [[VarUnsatGroup::new(); 325]; 75];
+        for i in 0..75 {
+            let mut var_list: LinkedList<usize> = LinkedList::<usize>::with_capacity(325);
+            for j in variable_connections[i].iter() {
+                let node: Node<usize> = var_list.push_head(*j);
+                var_sets[i][*j].node = Some(node);
             }
             var_lists.push(var_list);
         }

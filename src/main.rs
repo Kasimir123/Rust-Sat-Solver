@@ -23,8 +23,8 @@ fn main() {
     // let f = "./benchmark-cases/flat150-1.cnf";
     // let f = "./benchmark-cases/flat200-1.cnf";
     // let f = "./benchmark-cases/uf20.cnf";
-    let f = "./benchmark-cases/uf50.cnf";
-    // let f = "./benchmark-cases/uf75.cnf";
+    // let f = "./benchmark-cases/uf50.cnf";
+    let f = "./benchmark-cases/uf75.cnf";
     // let f = "./benchmark-cases/uf100.cnf";
     // let f = "./benchmark-cases/uf125.cnf";
     // let f = "./benchmark-cases/uf150.cnf";
