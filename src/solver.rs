@@ -24,6 +24,12 @@ pub struct CurResult {
     pub literal_sign: Option<bool>,
 }
 
+pub struct CheckResult {
+    pub check: bool,
+    pub groups_sat: Vec<usize>,
+    pub connections_checked: usize,
+}
+
 #[derive(Default)]
 pub struct Solver {
     // variables in the solver
@@ -273,13 +279,13 @@ impl Solver {
         }
     }
 
-    pub fn get_lcv(&self, cur: &Variable, the_clone: &BTreeSet<usize>) -> bool {
+    pub fn get_lcv(&self, cur: &Variable, ref_clone: &BTreeSet<usize>) -> bool {
         let mut connections_checked = 0;
 
         let mut literal_sign: bool;
         let mut var_score = 0;
 
-        for group_index in the_clone {
+        for group_index in ref_clone {
             let group = self.connection_groups.get(*group_index).unwrap();
         // for i in 0..self.variable_connections[cur.pos].len() {
         //     let group_index = self.variable_connections[cur.pos][i];
@@ -311,6 +317,40 @@ impl Solver {
         var_score >= 0
     }
 
+    pub fn do_check(&self, variable_unsat_groups: &BTreeSet<usize>, unsat_groups: &BTreeSet<usize>) -> CheckResult {
+        let mut check = true;
+        let mut connections_checked = 0;
+        let mut groups_sat: Vec<usize> = Vec::new();
+        for group_index in variable_unsat_groups {
+
+            let group = self.connection_groups.get(*group_index).unwrap();
+
+            let or_check = group.connections.iter().any(|con| {
+                connections_checked += 1;
+                self.check_connection(*con as usize).unwrap()
+            });
+
+            let sat_check = group.connections.iter().any(|con| {
+                connections_checked += 1;
+                self.check_connection_not_null(*con as usize).unwrap()
+            });
+
+            if sat_check && unsat_groups.contains(&group_index) {
+                groups_sat.push(*group_index);
+            }
+
+            if !or_check {
+                check = false;
+                break;
+            }
+        };
+        CheckResult {
+            check,
+            groups_sat,
+            connections_checked
+        }
+    }
+
     // solves the sat problem
     pub fn solve(&mut self) -> SolveResult {
         // initialize a vector to hold assigned values
@@ -326,6 +366,8 @@ impl Solver {
         }
 
         let mut variable_unsat_groups: Vec<BTreeSet<usize>> = Vec::new();
+        // let mut refs: Vec<&BTreeSet<usize>> = Vec::new();
+        // let mut dummy: Vec<BTreeSet<usize>> = Vec::new();
         for i in 0..self.variables.len() {
             let mut var_con_set = BTreeSet::new();
             let var_cons = self.variable_connections.get(i).unwrap();
@@ -367,8 +409,6 @@ impl Solver {
             // gets the variables position
             let pos = cur.pos;
             
-            let the_clone = variable_unsat_groups[pos].clone();
-
             let new_val: Option<bool>;
             if !next_cur.is_uc {
                 // check to see if lcv has been tried
@@ -384,7 +424,7 @@ impl Solver {
                     _ => unreachable!(),
                 }
                 new_val = match lcv_status {
-                    Some(false) => Some(self.get_lcv(cur, &the_clone)),
+                    Some(false) => Some(self.get_lcv(cur, &variable_unsat_groups[pos])),
                     Some(true) => Some(!cur.value.unwrap()),
                     _ => unreachable!(),
                 };
@@ -400,35 +440,16 @@ impl Solver {
 
             // loop through connections and perform out checks
 
-            let mut check = true;
-            for group_index in the_clone {
+            let check_result = self.do_check(&variable_unsat_groups[pos], &unsat_groups);
+            let check = check_result.check;
 
-                let group = self.connection_groups.get(group_index).unwrap();
-
-                let or_check = group.connections.iter().any(|con| {
-                    connections_checked += 1;
-                    self.check_connection(*con as usize).unwrap()
-                });
-
-                let sat_check = group.connections.iter().any(|con| {
-                    connections_checked += 1;
-                    self.check_connection_not_null(*con as usize).unwrap()
-                });
-
-                if sat_check && unsat_groups.contains(&group_index) {
-                    groups_sat_at_assignment[assigned.len() - 1].push(group_index);
-                }
-
-                if !or_check {
-                    check = false;
-                    break;
-                }
-            };
-
-            self.connections_checked += connections_checked;
+            self.connections_checked += check_result.connections_checked;
 
             // if check is true, push the next variable to be assigned
             if check {
+                for group_sat in check_result.groups_sat.iter() {
+                    groups_sat_at_assignment[assigned.len() - 1].push(*group_sat);
+                }
                 for i in 0..groups_sat_at_assignment[assigned.len() - 1].len() {
                     let group = groups_sat_at_assignment[assigned.len() - 1][i];
                     unsat_groups.remove(&group);
@@ -436,6 +457,7 @@ impl Solver {
                     for con in con_group.connections.iter() {
                         let var = self.connections.get(*con).unwrap().var_pos;
                         variable_unsat_groups[var].remove(&group);
+
                     }
                 }
 
