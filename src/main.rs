@@ -20,8 +20,8 @@ fn main() {
 
     // // make sure everything completes (prints the failed file name if user error)
     // // make sure to uncomment "use std::fs;" above
-    // // let paths = fs::read_dir("./benchmark-cases/20-sat/").unwrap();
-    // let paths = fs::read_dir("./benchmark-cases/50-sat/").unwrap();
+    // let paths = fs::read_dir("./benchmark-cases/20-sat/").unwrap();
+    // // let paths = fs::read_dir("./benchmark-cases/50-sat/").unwrap();
     // for path in paths {
     //     let mut solver = Solver::new();
     //     let file_path_buffer = path.as_ref().unwrap().path();
