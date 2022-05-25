@@ -11,6 +11,7 @@ use solver::Solver;
 // import time for stats
 // use std::fs;
 use std::fs::File;
+use std::path::PathBuf;
 use std::time::Instant;
 
 // main function
@@ -18,17 +19,17 @@ fn main() {
 
 
 
-    // // make sure everything completes
+    // // make sure everything completes (prints the failed file name if user error)
+    // make sure to uncomment "use std::fs;" above
     // // let paths = fs::read_dir("./benchmark-cases/20-sat/").unwrap();
     // let paths = fs::read_dir("./benchmark-cases/50-sat/").unwrap();
     // for path in paths {
     //     let mut solver = Solver::new();
-    //     let f = path.as_ref().unwrap().path();
-    //     let benchmark_file = File::open(f).expect("failed to open benchmark file");
+    //     let file_path_buffer: PathBuf = path.as_ref().unwrap().path();
+    //     let benchmark_file = File::open(file_path_buffer).expect("failed to open benchmark file");
     //     solver
     //         .load_cnf(benchmark_file)
     //         .expect("failed to parse benchmark file");
-    //     // println!("Name: {}", path.unwrap().path().display());
     //     solver.solve();
     //     if !solver.final_check() {
     //         println!("Failed: {}", path.unwrap().path().display());
@@ -55,6 +56,7 @@ fn main() {
     let f = "./benchmark-cases/uf175.cnf";
     // let f = "./benchmark-cases/uf200.cnf";
     // let f = "./benchmark-cases/uf250.cnf";
+    
     // note that implementation is limited to 250 variables for now
     // see conflict_set.rs
     // let f = "./benchmark-cases/f600.cnf";
