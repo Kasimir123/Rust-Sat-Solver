@@ -201,7 +201,7 @@ impl Solver {
     }
 
     pub fn get_next_cur(&self, unsat_groups: &BTreeSet<usize>) -> CurResult {
-        println!("num unsat_groups {}", unsat_groups.len());
+        // println!("num unsat_groups {}", unsat_groups.len());
         let mut set = false;
         let mut min_con: Option<usize> = None;
         let mut min_val: Option<usize> = None;
@@ -546,7 +546,14 @@ impl Solver {
                         }
                         var_exhausted[assigned.len() - 1] = None;
                         for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
-                            unsat_groups.insert(groups_sat_at_assignment[assigned.len() - 2][i]);
+                            let group = groups_sat_at_assignment[assigned.len() - 2][i];
+                            unsat_groups.insert(group);
+                            let con_group = self.connection_groups.get(group).unwrap();
+                            for con in con_group.connections.iter() {
+                                let var = self.connections.get(*con).unwrap().var_pos;
+                                variable_unsat_groups[var].insert(group);
+
+                            }
                         }
                         let to_reset = assigned.pop().unwrap();
                         self.variables[to_reset].value = None;
