@@ -1,6 +1,7 @@
 // import out structs
 use crate::connections::{Connection, ConnectionGroup};
 use crate::variable::Variable;
+use crate::conflict_set::ConflictSet;
 
 // import required imports
 use std::collections::BTreeSet;
@@ -426,10 +427,11 @@ impl Solver {
         }
         let mut lcv_status: Option<bool>;
 
-        let mut conflict_set: Vec<BTreeSet<usize>> = Vec::new();
-        for _i in 0..self.variables.len() {
-            conflict_set.push(BTreeSet::new());
-        }
+        let mut conflict_set: ConflictSet = ConflictSet::new();
+        // let mut conflict_set: Vec<BTreeSet<usize>> = Vec::new();
+        // for _i in 0..self.variables.len() {
+        //     conflict_set.push(BTreeSet::new());
+        // }
 
         let mut var_assigned_index: Vec<usize> = Vec::new();
         for _i in 0..self.variables.len() {
@@ -483,7 +485,11 @@ impl Solver {
                 for con in self.connection_groups.get(check_result.min_group_index.unwrap()).unwrap().connections.iter() {
                     let con = self.connections.get(*con).unwrap();
                     if con.var_pos != pos {
-                        conflict_set[pos].insert(con.var_pos);
+                        if !conflict_set.var_set[pos][con.var_pos] {
+                            conflict_set.var_list[pos][conflict_set.list_len[pos]] = con.var_pos;
+                            conflict_set.list_len[pos] += 1;
+                            conflict_set.var_set[pos][con.var_pos] = true;
+                        }
                     }
                 }
             }
@@ -519,9 +525,14 @@ impl Solver {
                     };
                 }
 
-                assigned.push(next_cur.cur.unwrap());
-                conflict_set[assigned[assigned.len() - 1]].clear();
-                var_assigned_index[next_cur.cur.unwrap()] = assigned.len() - 1;
+                let next_var_pos = next_cur.cur.unwrap();
+                assigned.push(next_var_pos);
+                for i in 0..conflict_set.list_len[next_var_pos] {
+                    conflict_set.var_set[next_var_pos][conflict_set.var_list[next_var_pos][i]] = false;
+                }
+                conflict_set.list_len[next_var_pos] = 0;
+                // conflict_set[assigned[assigned.len() - 1]].clear();
+                var_assigned_index[next_var_pos] = assigned.len() - 1;
             }
             // else, if the value was false, go through and backtrack
             else {
@@ -529,14 +540,23 @@ impl Solver {
                 if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {
                     loop {
                         // println!("{}", assigned.len());
-                        if conflict_set[assignment].contains(&assigned[assigned.len() - 1])
-                        {
-                            let mut temp: Vec<usize> = Vec::new();
-                            for conflict in conflict_set[assignment].iter() {
-                                temp.push(*conflict);
-                            }
-                            for temp_var in temp.iter() {
-                                conflict_set[assigned[assigned.len() - 1]].insert(*temp_var);
+                        // if conflict_set[assignment].contains(&assigned[assigned.len() - 1])
+                        if conflict_set.var_set[assignment][assigned[assigned.len() - 1]] {
+                            // let mut temp: Vec<usize> = Vec::new();
+                            // for conflict in conflict_set[assignment].iter() {
+                            //     temp.push(*conflict);
+                            // }
+                            // for temp_var in temp.iter() {
+                            //     conflict_set[assigned[assigned.len() - 1]].insert(*temp_var);
+                            // }
+                            for i in 0..conflict_set.list_len[assignment] {
+                                let move_conflict = conflict_set.var_list[assignment][i];
+                                let last_var = assigned[assigned.len() - 1];
+                                if !conflict_set.var_set[last_var][move_conflict] {
+                                    conflict_set.var_list[last_var][conflict_set.list_len[last_var]] = move_conflict;
+                                    conflict_set.list_len[last_var] += 1;
+                                    conflict_set.var_set[last_var][move_conflict] = true;
+                                }
                             }
                             assignment = assigned[assigned.len() - 1];
                             // do I need to remove assignment from its own conflict set?

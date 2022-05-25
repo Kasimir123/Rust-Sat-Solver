@@ -2,6 +2,7 @@
 pub mod connections;
 pub mod solver;
 pub mod variable;
+pub mod conflict_set;
 
 // import solver
 use solver::Solver;
