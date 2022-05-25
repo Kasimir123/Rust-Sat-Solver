@@ -17,19 +17,21 @@ use std::time::Instant;
 fn main() {
 
 
-    let mut solver = Solver::new();
-    let paths = fs::read_dir("./benchmark-cases/20-sat/").unwrap();
-    // let paths = fs::read_dir("./benchmark-cases/50-sat/").unwrap();
-    for path in paths {
-        let f = path.as_ref().unwrap().path();
-        let benchmark_file = File::open(f).expect("failed to open benchmark file");
-        solver
-            .load_cnf(benchmark_file)
-            .expect("failed to parse benchmark file");
-        // println!("Name: {}", path.unwrap().path().display());
-        solver.solve();
-    }
-    println!("Success!");
+
+    // // make sure everything completes
+    // let paths = fs::read_dir("./benchmark-cases/20-sat/").unwrap();
+    // // let paths = fs::read_dir("./benchmark-cases/50-sat/").unwrap();
+    // for path in paths {
+    //     let mut solver = Solver::new();
+    //     let f = path.as_ref().unwrap().path();
+    //     let benchmark_file = File::open(f).expect("failed to open benchmark file");
+    //     solver
+    //         .load_cnf(benchmark_file)
+    //         .expect("failed to parse benchmark file");
+    //     // println!("Name: {}", path.unwrap().path().display());
+    //     solver.solve();
+    // }
+    // println!("Success!");
 
 
     
