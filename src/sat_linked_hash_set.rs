@@ -72,14 +72,55 @@ impl SatLinkedHashSet {
     pub fn update_head_insert(&mut self, var: usize, spot_going_in: usize) {
         self.heads[var] = spot_going_in;
     }
-    pub fn insert(&mut self, var: usize, con: usize) -> bool {
+    pub fn insert(&mut self, var: usize, con: usize) {
         let previous_head = self.heads[var];
         let spot_going_in = self.open_spots[var][self.open_spots_len[var] - 1];
         self.open_spots_len[var] -= 1;
-        self.update_previous_head_insert(var, previous_head, spot_going_in);
+        if previous_head != usize::MAX {
+            self.update_previous_head_insert(var, previous_head, spot_going_in);
+        }
         self.update_node_being_replaced(var, con, spot_going_in, previous_head);
         self.update_head_insert(var, spot_going_in);
-        true
+    }
+    pub fn update_open_spots_remove(&mut self, var: usize, spot_will_be_open: usize) {
+        self.open_spots[var][self.open_spots_len[var]] = spot_will_be_open;
+        self.open_spots_len[var] += 1;
+    }
+    pub fn empty_list(&mut self, var: usize) {
+        self.heads[var] = usize::MAX;
+    }
+    pub fn remove_head(&mut self, var: usize) {
+        self.heads[var] = self.var_lists[var][self.heads[var]].next;
+        self.var_lists[var][self.heads[var]].prev = usize::MAX;
+    }
+    pub fn remove_tail(&mut self, var: usize, prior_to_tail: usize) {
+        self.var_lists[var][prior_to_tail].next = usize::MAX;
+    }
+    pub fn connect_neighbors_remove(&mut self, var: usize, prior_node: usize, after_node: usize) {
+        self.var_lists[var][prior_node].next = after_node;
+        self.var_lists[var][after_node].prev = prior_node;
+    }
+    pub fn update_neighbors_remove(&mut self, var: usize, spot_will_be_open: usize) {
+        let node_being_removed = &self.var_lists[var][spot_will_be_open];
+        let is_head = node_being_removed.prev == usize::MAX;
+        let is_tail = node_being_removed.next == usize::MAX;
+        if is_head && is_tail {
+            self.empty_list(var);
+        } else if is_head {
+            self.remove_head(var);
+        } else if is_tail {
+            let prior_to_tail = self.var_lists[var][spot_will_be_open].prev;
+            self.remove_tail(var, prior_to_tail);
+        } else {
+            let prior_node = self.var_lists[var][spot_will_be_open].prev;
+            let after_node = self.var_lists[var][spot_will_be_open].next;
+            self.connect_neighbors_remove(var, prior_node, after_node);
+        }
+    }
+    pub fn remove(&mut self, var: usize, con: usize) {
+        let spot_will_be_open = self.var_sets[var][con];
+        self.update_open_spots_remove(var, spot_will_be_open);
+        self.update_neighbors_remove(var, spot_will_be_open);
     }
 }
 
