@@ -27,6 +27,7 @@ fn main() {
     //     solver
     //         .load_cnf(benchmark_file)
     //         .expect("failed to parse benchmark file");
+    //     println!("Trying: {}", path.as_ref().unwrap().path().display());
     //     solver.solve();
     //     if !solver.final_check() {
     //         println!("Failed: {}", path.unwrap().path().display());
@@ -44,9 +45,9 @@ fn main() {
     // let f = "./benchmark-cases/flat100-1.cnf";
     // let f = "./benchmark-cases/flat150-1.cnf";
     // let f = "./benchmark-cases/flat200-1.cnf";
-    // let f = "./benchmark-cases/uf20.cnf";
+    let f = "./benchmark-cases/uf20.cnf";
 
-    let f = "./benchmark-cases/20-sat/uf20-0519.cnf";
+    // let f = "./benchmark-cases/20-sat/uf20-054.cnf";
     
     // let f = "./benchmark-cases/uf50.cnf";
     // let f = "./benchmark-cases/uf75.cnf";
