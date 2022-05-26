@@ -17,10 +17,11 @@ fn main() {
 
 
 
+    let start_multi = Instant::now();
     // make sure everything completes (prints the failed file name if user error)
     // let paths = std::fs::read_dir("./benchmark-cases/20-sat/").unwrap();
-    // let paths = std::fs::read_dir("./benchmark-cases/50-sat/").unwrap();
-    let paths = std::fs::read_dir("./benchmark-cases/100-sat/").unwrap();
+    let paths = std::fs::read_dir("./benchmark-cases/50-sat/").unwrap();
+    // let paths = std::fs::read_dir("./benchmark-cases/100-sat/").unwrap();
     for path in paths {
         let mut solver = Solver::new();
         let file_path_buffer = path.as_ref().unwrap().path();
@@ -35,6 +36,8 @@ fn main() {
         }
     }
     println!("Success!");
+    let multi_elapsed = start_multi.elapsed().as_secs_f64();
+    println!("Multi-Time: {}", multi_elapsed);
 
 
     
