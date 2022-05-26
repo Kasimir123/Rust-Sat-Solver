@@ -37,7 +37,7 @@ impl SatLinkedHashSet {
                 var_open_spots.push(1065 - j - 1);
                 var_open_spots_len += 1;
                 var_list.push(SatNode { val: usize::MAX, next: usize::MAX, prev: usize::MAX });
-                var_set.push(j);
+                var_set.push(usize::MAX);
             }
             let num_cons = variable_connections[i].len();
             for j in 0..num_cons {
@@ -78,9 +78,31 @@ impl SatLinkedHashSet {
     pub fn update_head_insert(&mut self, var: usize, spot_going_in: usize) {
         self.heads[var] = spot_going_in;
     }
+    pub fn update_var_sets_insert(&mut self, var: usize, con: usize, spot_going_in: usize) {
+        self.var_sets[var][con] = spot_going_in;
+    }
     pub fn insert(&mut self, var: usize, con: usize) {
+        // if var == 5 {
+        //     println!("con: {}", con);
+        //     let mut node = self.var_lists[var][self.heads[var]].val;
+        //     println!("head: {}", node);
+        //     let mut next = self.var_lists[var][self.heads[var]].next;
+        //     while next != usize::MAX {
+        //         node = self.var_lists[var][next].val;
+        //         println!("next: {}", node);
+        //         if node == 602 {
+        //             println!("spot_will_be_open? {}", next);
+        //         }
+        //         next = self.var_lists[var][next].next;
+        //     }
+        //     // std::process::exit(1);
+        // }
         let previous_head = self.heads[var];
+        // if self.open_spots_len[var] == 0 {
+        //     println!("{}", var);
+        // }
         let spot_going_in = self.open_spots[var][self.open_spots_len[var] - 1];
+        self.update_var_sets_insert(var, con, spot_going_in);
         self.open_spots_len[var] -= 1;
         if previous_head != usize::MAX {
             self.update_previous_head_insert(var, previous_head, spot_going_in);
@@ -89,6 +111,9 @@ impl SatLinkedHashSet {
         self.update_head_insert(var, spot_going_in);
     }
     pub fn update_open_spots_remove(&mut self, var: usize, spot_will_be_open: usize) {
+        // if self.open_spots_len[var] == 1065 {
+        //     println!("{}", var);
+        // }
         self.open_spots[var][self.open_spots_len[var]] = spot_will_be_open;
         self.open_spots_len[var] += 1;
     }
@@ -123,6 +148,9 @@ impl SatLinkedHashSet {
             self.connect_neighbors_remove(var, prior_node, after_node);
         }
     }
+    pub fn reset_node_being_removed(&mut self, var: usize, con: usize) {
+        self.var_sets[var][con] = usize::MAX;
+    }
     pub fn remove(&mut self, var: usize, con: usize) {
         // if var == 33 {
         //     println!("con: {}", con);
@@ -144,8 +172,12 @@ impl SatLinkedHashSet {
         //     println!("spot_will_be_open {}", spot_will_be_open);
         //     std::process::exit(1);
         // }
+        self.reset_node_being_removed(var, con);
         self.update_open_spots_remove(var, spot_will_be_open);
         self.update_neighbors_remove(var, spot_will_be_open);
+    }
+    pub fn contains(&mut self, var: usize, con: usize) -> bool {
+        self.var_sets[var][con] != usize::MAX
     }
 }
 

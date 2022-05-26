@@ -347,9 +347,7 @@ impl Solver {
         let mut min_group_index: Option<usize> = None;
         let mut min_var_assiged_indices: Vec<usize> = Vec::new();
         let mut sat_linked_list_index = variable_unsat_groups.heads[*pos];
-        let mut debug = 0;
         while sat_linked_list_index != usize::MAX {
-            debug += 1;
             let group_index = &variable_unsat_groups.var_lists[*pos][sat_linked_list_index].val;
             let group = self.connection_groups.get(*group_index).unwrap();
             sat_linked_list_index = variable_unsat_groups.var_lists[*pos][sat_linked_list_index].next;
@@ -395,7 +393,6 @@ impl Solver {
                 }
             }
         };
-        // println!("{}", debug);
         CheckResult {
             check,
             groups_sat,
@@ -406,6 +403,9 @@ impl Solver {
 
     // solves the sat problem
     pub fn solve(&mut self) -> SolveResult {
+
+        // println!("num con_groups var 5: {}", self.variable_connections[5].len());
+        
         // initialize a vector to hold assigned values
         let mut assigned = Vec::new();
 
@@ -518,10 +518,22 @@ impl Solver {
                     let con_group = self.connection_groups.get(group).unwrap();
                     for con in con_group.connections.iter() {
                         let var = self.connections.get(*con).unwrap().var_pos;
-                        variable_unsat_groups.remove(var, group);
-                        // if var == 33 {
-                        //     println!("test");
+                        // if var == 5 {
+                        //     println!("REMOVING pos: {}, assigned.len(): {}, group: {}", pos, assigned.len(), group);
+                        //     let mut len_5 = 1;
+                        //     let mut head_5 = &variable_unsat_groups.var_lists[5][variable_unsat_groups.heads[5]];
+                        //     while head_5.next != usize::MAX {
+                        //         len_5 += 1;
+                        //         head_5 = &variable_unsat_groups.var_lists[5][head_5.next];
+                        //     }
+                        //     println!("len_5: {}", len_5);
+                        //     if len_5 > 16 {
+                        //         std::process::exit(1);
+                        //     }
                         // }
+                        if variable_unsat_groups.contains(var, group) {
+                            variable_unsat_groups.remove(var, group);
+                        }
                         // let mut var_unsat_group = variable_unsat_groups.var_sets[var][group];
                         // let node = var_unsat_group.node.unwrap();
                         // var_unsat_group.is_unsat = false;
@@ -585,7 +597,23 @@ impl Solver {
                             let con_group = self.connection_groups.get(group).unwrap();
                             for con in con_group.connections.iter() {
                                 let var = self.connections.get(*con).unwrap().var_pos;
-                                variable_unsat_groups.insert(var, group);
+                                // if var == 5 {
+                                //     println!("ADDING pos: {}, assigned.len(): {}, group: {}", pos, assigned.len(), group);
+                                //     let mut len_5 = 1;
+                                //     let mut head_5 = &variable_unsat_groups.var_lists[5][variable_unsat_groups.heads[5]];
+                                //     while head_5.next != usize::MAX {
+                                //         len_5 += 1;
+                                //         head_5 = &variable_unsat_groups.var_lists[5][head_5.next];
+                                //     }
+                                //     println!("len_5: {}", len_5);
+                                //     if len_5 > 16 {
+                                //         std::process::exit(1);
+                                //     }
+                                // }
+                                // I think I can remove this condition, but leaving it for safety until everything else works
+                                if !variable_unsat_groups.contains(var, group) {
+                                    variable_unsat_groups.insert(var, group);
+                                }
                                 // let node: Node<usize> = variable_unsat_groups.var_lists[var].push_head(group);
                                 // variable_unsat_groups.var_sets[var][group].node = Some(node);
                                 // variable_unsat_groups.var_sets[var][group].is_unsat = true;
