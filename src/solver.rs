@@ -3,7 +3,6 @@ use crate::connections::{Connection, ConnectionGroup};
 use crate::variable::Variable;
 use crate::conflict_set::ConflictSet;
 use crate::sat_linked_hash_set::SatLinkedHashSet;
-// use crate::var_unsat::VarUnsatGroups;
 
 // import required imports
 use std::collections::BTreeSet;
@@ -267,8 +266,11 @@ impl Solver {
                     .variables
                     .get(self.connections.get(*con).unwrap().var_pos)
                     .unwrap();
-                // println!("{}", var.value == None);
+                // println!("not assigned: {}", var.value == None);
+                // println!("{}", min_val.unwrap());
+                // println!("sat: {}", self.check_connection_not_null(*con).unwrap());
                 if var.value == None {
+                    // println!("return");
                     is_uc = min_val.unwrap() == 1;
                     return CurResult {
                         set: true,
@@ -290,18 +292,24 @@ impl Solver {
         }
     }
 
-    // pub fn get_lcv(&self, cur: &Variable, variable_unsat_groups: &LinkedList<usize>) -> bool {
-    pub fn get_lcv(&self, cur: &Variable) -> bool {
+    pub fn get_lcv(&self, cur: &Variable, variable_unsat_groups: &SatLinkedHashSet) -> bool {
+    // pub fn get_lcv(&self, cur: &Variable) -> bool {
         let mut connections_checked = 0;
 
         let mut literal_sign: bool;
         let mut var_score = 0;
 
+        let pos = cur.pos;
+        let mut sat_linked_list_index = variable_unsat_groups.heads[pos];
+        while sat_linked_list_index != usize::MAX {
+            let group_index = variable_unsat_groups.var_lists[pos][sat_linked_list_index].val;
+            let group = self.connection_groups.get(group_index).unwrap();
+            sat_linked_list_index = variable_unsat_groups.var_lists[pos][sat_linked_list_index].next;
         // for group_index in variable_unsat_groups.iter() {
         //     let group = self.connection_groups.get(*group_index).unwrap();
-        for i in 0..self.variable_connections[cur.pos].len() {
-            let group_index = self.variable_connections[cur.pos][i];
-            let group = self.connection_groups.get(group_index).unwrap();
+        // for i in 0..self.variable_connections[cur.pos].len() {
+        //     let group_index = self.variable_connections[cur.pos][i];
+        //     let group = self.connection_groups.get(group_index).unwrap();
             let or_check = group.connections.iter().any(|con| {
                 connections_checked += 1;
                 self.check_connection_not_null(*con as usize).unwrap()
@@ -329,15 +337,24 @@ impl Solver {
         var_score >= 0
     }
 
-    // pub fn do_check(&self,  unsat_groups: &BTreeSet<usize>, var_assigned_index: &Vec<usize>, pos: &usize, variable_unsat_groups: &LinkedList<usize>) -> CheckResult {
-    pub fn do_check(&self,  unsat_groups: &BTreeSet<usize>, var_assigned_index: &Vec<usize>, pos: &usize) -> CheckResult {
+    pub fn do_check(&self,  unsat_groups: &BTreeSet<usize>, var_assigned_index: &Vec<usize>, pos: &usize, variable_unsat_groups: &SatLinkedHashSet) -> CheckResult {
+        // pub fn do_check(&self,  unsat_groups: &BTreeSet<usize>, var_assigned_index: &Vec<usize>, pos: &usize) -> CheckResult {
+        // println!("pos: {}", *pos);
+        // println!("open spots len: {}", variable_unsat_groups.open_spots_len[*pos]);
         let mut check = true;
         let mut connections_checked = 0;
         let mut groups_sat: Vec<usize> = Vec::new();
         let mut min_group_index: Option<usize> = None;
         let mut min_var_assiged_indices: Vec<usize> = Vec::new();
-        for group_index in self.variable_connections.get(*pos).unwrap().iter() {
+        let mut sat_linked_list_index = variable_unsat_groups.heads[*pos];
+        let mut debug = 0;
+        while sat_linked_list_index != usize::MAX {
+            debug += 1;
+            let group_index = &variable_unsat_groups.var_lists[*pos][sat_linked_list_index].val;
             let group = self.connection_groups.get(*group_index).unwrap();
+            sat_linked_list_index = variable_unsat_groups.var_lists[*pos][sat_linked_list_index].next;
+        // for group_index in self.variable_connections.get(*pos).unwrap().iter() {
+        //     let group = self.connection_groups.get(*group_index).unwrap();
         // for group_index in variable_unsat_groups.iter() {
         //     let group = self.connection_groups.get(*group_index).unwrap();
 
@@ -351,7 +368,7 @@ impl Solver {
                 self.check_connection_not_null(*con as usize).unwrap()
             });
 
-            if sat_check && unsat_groups.contains(&group_index) {
+            if sat_check && unsat_groups.contains(group_index) {
                 groups_sat.push(*group_index);
             }
 
@@ -378,6 +395,7 @@ impl Solver {
                 }
             }
         };
+        // println!("{}", debug);
         CheckResult {
             check,
             groups_sat,
@@ -400,12 +418,10 @@ impl Solver {
             unsat_groups.insert(i);
         }
 
-        // let mut variable_unsat_groups = VarUnsatGroups::new(&self.variable_connections);
+        let mut variable_unsat_groups: SatLinkedHashSet = SatLinkedHashSet::new(&self.variable_connections);
 
         // push the first value into the assigned values
         let next_cur = self.get_next_cur(&unsat_groups);
-
-        // println!("{}", variable_unsat_groups.var_lists[next_cur.cur.unwrap()].len());
 
         self.connections_checked += next_cur.connections_checked;
 
@@ -456,8 +472,8 @@ impl Solver {
                     _ => unreachable!(),
                 }
                 new_val = match lcv_status {
-                    // Some(false) => Some(self.get_lcv(cur, &variable_unsat_groups.var_lists[pos])),
-                    Some(false) => Some(self.get_lcv(cur)),
+                    Some(false) => Some(self.get_lcv(cur, &variable_unsat_groups)),
+                    // Some(false) => Some(self.get_lcv(cur)),
                     Some(true) => Some(!cur.value.unwrap()),
                     _ => unreachable!(),
                 };
@@ -472,8 +488,8 @@ impl Solver {
             groups_sat_at_assignment[assigned.len() - 1].clear();
 
             // loop through connections and perform out checks
-            // let check_result = self.do_check(&unsat_groups, &var_assigned_index, &pos, &variable_unsat_groups.var_lists[pos]);
-            let check_result = self.do_check(&unsat_groups, &var_assigned_index, &pos);
+            let check_result = self.do_check(&unsat_groups, &var_assigned_index, &pos, &variable_unsat_groups);
+            // let check_result = self.do_check(&unsat_groups, &var_assigned_index, &pos);
             let check = check_result.check;
 
             if !check {
@@ -499,17 +515,23 @@ impl Solver {
                 for i in 0..groups_sat_at_assignment[assigned.len() - 1].len() {
                     let group = groups_sat_at_assignment[assigned.len() - 1][i];
                     unsat_groups.remove(&group);
-                    // let con_group = self.connection_groups.get(group).unwrap();
-                    // for con in con_group.connections.iter() {
-                    //     let var = self.connections.get(*con).unwrap().var_pos;
-                    //     let mut var_unsat_group = variable_unsat_groups.var_sets[var][group];
-                    //     let node = var_unsat_group.node.unwrap();
-                    //     var_unsat_group.is_unsat = false;
-                    //     variable_unsat_groups.var_lists[var].pop_node(&node);
-                    // }
+                    let con_group = self.connection_groups.get(group).unwrap();
+                    for con in con_group.connections.iter() {
+                        let var = self.connections.get(*con).unwrap().var_pos;
+                        variable_unsat_groups.remove(var, group);
+                        // if var == 33 {
+                        //     println!("test");
+                        // }
+                        // let mut var_unsat_group = variable_unsat_groups.var_sets[var][group];
+                        // let node = var_unsat_group.node.unwrap();
+                        // var_unsat_group.is_unsat = false;
+                        // variable_unsat_groups.var_lists[var].pop_node(&node);
+                    }
                 }
 
+                // println!("pos: {}", pos);
                 let next_cur = self.get_next_cur(&unsat_groups);
+                // println!("{}", next_cur.set);
 
                 self.connections_checked += next_cur.connections_checked;
 
@@ -537,6 +559,7 @@ impl Solver {
             // else, if the value was false, go through and backtrack
             else {
                 let mut assignment = assigned[assigned.len() - 1];
+                // println!("assignment: {}", assignment);
                 if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {
                     loop {
                         if conflict_set.var_set[assignment][assigned[assigned.len() - 1]] {
@@ -559,13 +582,14 @@ impl Solver {
                         for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
                             let group = groups_sat_at_assignment[assigned.len() - 2][i];
                             unsat_groups.insert(group);
-                            // let con_group = self.connection_groups.get(group).unwrap();
-                            // for con in con_group.connections.iter() {
-                            //     let var = self.connections.get(*con).unwrap().var_pos;
-                            //     let node: Node<usize> = variable_unsat_groups.var_lists[var].push_head(group);
-                            //     variable_unsat_groups.var_sets[var][group].node = Some(node);
-                            //     variable_unsat_groups.var_sets[var][group].is_unsat = true;
-                            // }
+                            let con_group = self.connection_groups.get(group).unwrap();
+                            for con in con_group.connections.iter() {
+                                let var = self.connections.get(*con).unwrap().var_pos;
+                                variable_unsat_groups.insert(var, group);
+                                // let node: Node<usize> = variable_unsat_groups.var_lists[var].push_head(group);
+                                // variable_unsat_groups.var_sets[var][group].node = Some(node);
+                                // variable_unsat_groups.var_sets[var][group].is_unsat = true;
+                            }
                         }
                         let to_reset = assigned.pop().unwrap();
                         self.variables[to_reset].value = None;

@@ -21,29 +21,35 @@ pub struct SatLinkedHashSet {
 
 impl SatLinkedHashSet {
     pub fn new(variable_connections: &Vec<Vec<usize>>) -> Self {
-        let mut var_lists: Vec<Vec<SatNode>> = Vec::new();
-        let mut var_sets: Vec<Vec<usize>> = Vec::new();
-        let mut open_spots: Vec<Vec<usize>> = Vec::new();
-        let mut open_spots_len: Vec<usize> = Vec::new();
-        let mut heads: Vec<usize> = Vec::new();
+        let mut var_lists: Vec<Vec<SatNode>> = Vec::<Vec<SatNode>>::with_capacity(250);
+        let mut var_sets: Vec<Vec<usize>> = Vec::<Vec<usize>>::with_capacity(250);
+        let mut open_spots: Vec<Vec<usize>> = Vec::<Vec<usize>>::with_capacity(250);
+        let mut open_spots_len: Vec<usize> = Vec::<usize>::with_capacity(250);
+        let mut heads: Vec<usize> = Vec::<usize>::with_capacity(250);
         let num_vars = variable_connections.len();
         for i in 0..num_vars {
-            let mut var_list: Vec<SatNode> = Vec::new();
-            let mut var_set: Vec<usize> = Vec::new();
-            let mut var_open_spots: Vec<usize> = Vec::new();
-            let var_open_spots_len: usize = 0;
+            let mut var_list: Vec<SatNode> = Vec::<SatNode>::with_capacity(1065);
+            let mut var_set: Vec<usize> = Vec::<usize>::with_capacity(1065);
+            let mut var_open_spots: Vec<usize> = Vec::<usize>::with_capacity(1065);
+            let mut var_open_spots_len: usize = 0;
             let head: usize = 0;
+            for j in 0..1065 {
+                var_open_spots.push(1065 - j - 1);
+                var_open_spots_len += 1;
+                var_list.push(SatNode { val: usize::MAX, next: usize::MAX, prev: usize::MAX });
+                var_set.push(j);
+            }
             let num_cons = variable_connections[i].len();
             for j in 0..num_cons {
-                var_open_spots.push(usize::MAX);
                 let group = variable_connections[i][j];
-                var_set.push(j);
                 let mut next = j + 1;
                 if next == num_cons {
                     next = usize::MAX;
                 }
-                let node = SatNode::new(group, j - 1, next);
-                var_list.push(node);
+                let node = SatNode::new(group, next, j - 1);
+                var_list[j] = node;
+                var_set[group] = j;
+                var_open_spots_len -= 1;
             }
             var_lists.push(var_list);
             var_sets.push(var_set);
@@ -118,7 +124,26 @@ impl SatLinkedHashSet {
         }
     }
     pub fn remove(&mut self, var: usize, con: usize) {
+        // if var == 33 {
+        //     println!("con: {}", con);
+        //     let mut node = self.var_lists[var][self.heads[var]].val;
+        //     println!("head: {}", node);
+        //     let mut next = self.var_lists[var][self.heads[var]].next;
+        //     while next != usize::MAX {
+        //         node = self.var_lists[var][next].val;
+        //         println!("next: {}", node);
+        //         if node == 602 {
+        //             println!("spot_will_be_open? {}", next);
+        //         }
+        //         next = self.var_lists[var][next].next;
+        //     }
+        //     // std::process::exit(1);
+        // }
         let spot_will_be_open = self.var_sets[var][con];
+        // if var == 33 {
+        //     println!("spot_will_be_open {}", spot_will_be_open);
+        //     std::process::exit(1);
+        // }
         self.update_open_spots_remove(var, spot_will_be_open);
         self.update_neighbors_remove(var, spot_will_be_open);
     }
