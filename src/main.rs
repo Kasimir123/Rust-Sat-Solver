@@ -21,7 +21,9 @@ fn main() {
     // make sure everything completes (prints the failed file name if user error)
     // let paths = std::fs::read_dir("./benchmark-cases/20-sat/").unwrap();
     // let paths = std::fs::read_dir("./benchmark-cases/50-sat/").unwrap();
-    let paths = std::fs::read_dir("./benchmark-cases/100-sat/").unwrap();
+    // let paths = std::fs::read_dir("./benchmark-cases/100-sat/").unwrap();
+    // let paths = std::fs::read_dir("./benchmark-cases/150-sat/").unwrap();
+    let paths = std::fs::read_dir("./benchmark-cases/175-sat/").unwrap();
     for path in paths {
         let mut solver = Solver::new();
         let file_path_buffer = path.as_ref().unwrap().path();
@@ -49,17 +51,13 @@ fn main() {
     // let f = "./benchmark-cases/flat100-1.cnf";
     // let f = "./benchmark-cases/flat150-1.cnf";
     // let f = "./benchmark-cases/flat200-1.cnf";
-    // let f = "./benchmark-cases/uf20.cnf";
-
-    // let f = "./benchmark-cases/20-sat/uf20-054.cnf";
-    // let f = "./benchmark-cases/20-sat/uf20-0899.cnf";
-    
+    let f = "./benchmark-cases/uf20.cnf";
     // let f = "./benchmark-cases/uf50.cnf";
     // let f = "./benchmark-cases/uf75.cnf";
     // let f = "./benchmark-cases/uf100.cnf";
     // let f = "./benchmark-cases/uf125.cnf";
     // let f = "./benchmark-cases/uf150.cnf";
-    let f = "./benchmark-cases/uf175.cnf";
+    // let f = "./benchmark-cases/uf175.cnf";
     // let f = "./benchmark-cases/uf200.cnf";
     // let f = "./benchmark-cases/uf250.cnf";
     
