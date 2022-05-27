@@ -33,6 +33,7 @@ impl SatLinkedHashSet {
             let mut var_open_spots: Vec<usize> = Vec::<usize>::with_capacity(1065);
             let mut var_open_spots_len: usize = 0;
             let head: usize = 0;
+            // don't forget there is a 1065 in len()
             for j in 0..1065 {
                 var_open_spots.push(1065 - j - 1);
                 var_open_spots_len += 1;
@@ -65,6 +66,10 @@ impl SatLinkedHashSet {
             open_spots_len,
         }
     }
+    // couldn't figure out the borrow checker, so now 1065 is hard coded in solver.rs
+    // pub fn len(self, var: usize) -> usize {
+    //     1065 - self.open_spots_len[var]
+    // }
     pub fn update_previous_head_insert(&mut self, var: usize, previous_head: usize, spot_going_in: usize) {
         let mut previous_head_node = &mut self.var_lists[var][previous_head];
         previous_head_node.prev = spot_going_in;

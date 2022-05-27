@@ -203,18 +203,30 @@ impl Solver {
         // otherwise return if the variable is equal to the value
         Some(var.value? == connection.val)
     }
-
-    pub fn get_next_cur(&self, unsat_groups: &BTreeSet<usize>) -> CurResult {
+    pub fn get_var_max_deg(&self, variable_unsat_groups: &SatLinkedHashSet, min_groups_vars: &BTreeSet<usize>) -> usize{
+        let mut max_deg = 0;
+        let mut var_max_deg = usize::MAX;
+        for var_pos in min_groups_vars.iter() {
+            let deg = 1065 - variable_unsat_groups.open_spots_len[*var_pos];
+            if deg > max_deg {
+                var_max_deg = *var_pos;
+                max_deg = deg;
+            }
+        }
+        var_max_deg
+    }
+    pub fn get_next_cur(&self, unsat_groups: &BTreeSet<usize>, variable_unsat_groups: &SatLinkedHashSet) -> CurResult {
         // println!("num unsat_groups {}", unsat_groups.len());
         let mut set = false;
-        let mut min_con: Option<usize> = None;
+        let mut min_groups: Vec<usize> = Vec::new();
+        let mut min_groups_vars: BTreeSet<usize> = BTreeSet::new();
         let mut min_val: Option<usize> = None;
         let mut literal_sign: Option<bool> = None;
         let mut is_uc: bool = false;
 
-        for i in unsat_groups.iter() {
+        for group_index in unsat_groups.iter() {
             // println!("iter");
-            let group = self.connection_groups.get(*i).unwrap();
+            let group = self.connection_groups.get(*group_index).unwrap();
 
             let mut count = 0;
             for connection in group.connections.iter() {
@@ -231,57 +243,82 @@ impl Solver {
             if !set {
                 // println!("set");
                 set = true;
-                min_con = Some(*i);
+                min_groups.push(*group_index);
                 min_val = Some(count);
             } else if count < min_val.unwrap() {
-                min_con = Some(*i);
+                min_groups.clear();
+                min_groups.push(*group_index);
                 min_val = Some(count);
+            } else if count == min_val.unwrap() {
+                min_groups.push(*group_index);
             }
 
-            if min_val.unwrap() == 1 {
-                for connection in group.connections.iter() {
-                    if self
-                        .variables
-                        .get(self.connections.get(*connection).unwrap().var_pos)
-                        .unwrap()
-                        .value
-                        == None
-                    {
-                        literal_sign = Some(self.connections.get(*connection).unwrap().val);
-                    }
+            // if min_val.unwrap() == 1 {
+            //     for connection in group.connections.iter() {
+            //         if self
+            //             .variables
+            //             .get(self.connections.get(*connection).unwrap().var_pos)
+            //             .unwrap()
+            //             .value
+            //             == None
+            //         {
+            //             literal_sign = Some(self.connections.get(*connection).unwrap().val);
+            //         }
+            //     }
+            //     break;
+            // }
+        }
+
+        for group_index in min_groups.iter() {
+            let group = self.connection_groups.get(*group_index).unwrap();
+            for con in group.connections.iter() {
+                let var = self.connections.get(*con).unwrap().var_pos;
+                if self.variables.get(var).unwrap().value == None {
+                    min_groups_vars.insert(var);
                 }
-                break;
             }
         }
+
+        let var_max_deg = self.get_var_max_deg(variable_unsat_groups, &min_groups_vars);
 
         if set {
-            for con in self
-                .connection_groups
-                .get(min_con.unwrap())
-                .unwrap()
-                .connections
-                .iter()
-            {
-                let var = self
-                    .variables
-                    .get(self.connections.get(*con).unwrap().var_pos)
-                    .unwrap();
-                // println!("not assigned: {}", var.value == None);
-                // println!("{}", min_val.unwrap());
-                // println!("sat: {}", self.check_connection_not_null(*con).unwrap());
-                if var.value == None {
-                    // println!("return");
-                    is_uc = min_val.unwrap() == 1;
-                    return CurResult {
-                        set: true,
-                        cur: Some(var.pos),
-                        connections_checked: 0,
-                        is_uc,
-                        literal_sign,
-                    };
-                }
+            return CurResult {
+                set: true,
+                cur: Some(var_max_deg),
+                connections_checked: 0,
+                is_uc,
+                literal_sign,
             }
         }
+
+        // if set {
+        //     for con in self
+        //         .connection_groups
+        //         .get(min_con.unwrap())
+        //         .unwrap()
+        //         .connections
+        //         .iter()
+        //     {
+        //         let var = self
+        //             .variables
+        //             .get(self.connections.get(*con).unwrap().var_pos)
+        //             .unwrap();
+        //         // println!("not assigned: {}", var.value == None);
+        //         // println!("{}", min_val.unwrap());
+        //         // println!("sat: {}", self.check_connection_not_null(*con).unwrap());
+        //         if var.value == None {
+        //             // println!("return");
+        //             is_uc = min_val.unwrap() == 1;
+        //             return CurResult {
+        //                 set: true,
+        //                 cur: Some(var.pos),
+        //                 connections_checked: 0,
+        //                 is_uc,
+        //                 literal_sign,
+        //             };
+        //         }
+        //     }
+        // }
         // println!("test");
         CurResult {
             set: false,
@@ -421,7 +458,7 @@ impl Solver {
         let mut variable_unsat_groups: SatLinkedHashSet = SatLinkedHashSet::new(&self.variable_connections);
 
         // push the first value into the assigned values
-        let next_cur = self.get_next_cur(&unsat_groups);
+        let next_cur = self.get_next_cur(&unsat_groups, &variable_unsat_groups);
 
         self.connections_checked += next_cur.connections_checked;
 
@@ -542,7 +579,7 @@ impl Solver {
                 }
 
                 // println!("pos: {}", pos);
-                let next_cur = self.get_next_cur(&unsat_groups);
+                let next_cur = self.get_next_cur(&unsat_groups, &variable_unsat_groups);
                 // println!("{}", next_cur.set);
 
                 self.connections_checked += next_cur.connections_checked;
