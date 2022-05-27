@@ -253,20 +253,22 @@ impl Solver {
                 min_groups.push(*group_index);
             }
 
-            // if min_val.unwrap() == 1 {
-            //     for connection in group.connections.iter() {
-            //         if self
-            //             .variables
-            //             .get(self.connections.get(*connection).unwrap().var_pos)
-            //             .unwrap()
-            //             .value
-            //             == None
-            //         {
-            //             literal_sign = Some(self.connections.get(*connection).unwrap().val);
-            //         }
-            //     }
-            //     break;
-            // }
+            if min_val.unwrap() == 1 {
+                is_uc = true;
+                for connection in group.connections.iter() {
+                    let var = self.connections.get(*connection).unwrap().var_pos;
+                    if self
+                        .variables
+                        .get(var)
+                        .unwrap()
+                        .value
+                        == None
+                    {
+                        literal_sign = Some(self.connections.get(*connection).unwrap().val);
+                    }
+                }
+                break;
+            }
         }
 
         for group_index in min_groups.iter() {
