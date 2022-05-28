@@ -704,37 +704,37 @@ impl Solver {
                 unsat_groups.insert(learned_clause_index);
                 let mut hack_loop_test = false;
                 // this hack loop is backing up further if all of the newly-learned clauses's lits are still assigned
-                // loop {
-                //     // println!("761");
-                //     let new_clause = &self.connection_groups[self.connection_groups.len() - 1];
-                //     let num_lits = new_clause.connections.len();
-                //     let mut check_759 = 0;
-                //     for con in new_clause.connections.iter() {
-                //         if !self.check_connection(*con).unwrap() {
-                //             check_759 += 1
-                //         }
-                //     }
-                //     if check_759 != num_lits {
-                //         break;
-                //     } else {
-                //         hack_loop_test = true;
-                //     }
-                //     var_exhausted[assigned.len() - 1] = None;
-                //     for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
-                //         let group = groups_sat_at_assignment[assigned.len() - 2][i];
-                //         unsat_groups.insert(group);
-                //         let con_group = self.connection_groups.get(group).unwrap();
-                //         for con in con_group.connections.iter() {
-                //             let var = self.connections.get(*con).unwrap().var_pos;
-                //             if !variable_unsat_groups.contains(var, group) {
-                //                 variable_unsat_groups.insert(var, group);
-                //             }
-                //         }
-                //     }
-                //     let to_reset = assigned.pop().unwrap();
-                //     self.variables[to_reset].value = None;
-                //     self.backtracks += 1;
-                // }
+                loop {
+                    // println!("761");
+                    let new_clause = &self.connection_groups[self.connection_groups.len() - 1];
+                    let num_lits = new_clause.connections.len();
+                    let mut check_759 = 0;
+                    for con in new_clause.connections.iter() {
+                        if !self.check_connection(*con).unwrap() {
+                            check_759 += 1
+                        }
+                    }
+                    if check_759 != num_lits {
+                        break;
+                    } else {
+                        hack_loop_test = true;
+                    }
+                    var_exhausted[assigned.len() - 1] = None;
+                    for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
+                        let group = groups_sat_at_assignment[assigned.len() - 2][i];
+                        unsat_groups.insert(group);
+                        let con_group = self.connection_groups.get(group).unwrap();
+                        for con in con_group.connections.iter() {
+                            let var = self.connections.get(*con).unwrap().var_pos;
+                            if !variable_unsat_groups.contains(var, group) {
+                                variable_unsat_groups.insert(var, group);
+                            }
+                        }
+                    }
+                    let to_reset = assigned.pop().unwrap();
+                    self.variables[to_reset].value = None;
+                    self.backtracks += 1;
+                }
                 
                 if !hack_loop_test {
                     let mut assignment = assigned[assigned.len() - 1];
