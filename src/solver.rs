@@ -462,7 +462,7 @@ impl Solver {
 
     // solves the sat problem
     pub fn solve(&mut self) -> SolveResult {
-        // let mut  debug_465 = 0;
+        let mut  debug_465 = 0;
 
         // println!("num con_groups var 5: {}", self.variable_connections[5].len());
         
@@ -517,7 +517,7 @@ impl Solver {
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
             
-            // debug_465 += 1;
+            debug_465 += 1;
             // gets the variable to assigned
             let cur = self.variables.get(*assigned.last().unwrap()).unwrap();
 
@@ -681,7 +681,7 @@ impl Solver {
                 }
                 // let test_learned = learned_clause.clone();
                 // // if learned_clause_index == 107 {
-                // if debug_465 == 31 {
+                // if debug_465 == 3 {
                 //     // println!("DEBUG 465: {}", debug_465);
                 //     println!("num lits: {}", test_learned.connections.len());
                 //     let conflict_var = assigned[assigned.len() - 1];
@@ -712,7 +712,10 @@ impl Solver {
                 let new_clause = &self.connection_groups[self.connection_groups.len() - 1];
                 let mut new_clause_vars: Vec<usize> = Vec::new();
                 for con in new_clause.connections.iter() {
-                    new_clause_vars.push(self.connections.get(*con).unwrap().var_pos);
+                    let var = self.connections.get(*con).unwrap().var_pos;
+                    if !antecedents[var_assigned_index[var]].is_uc {
+                        new_clause_vars.push(var);
+                    }
                 }
                 let mut new_clause_var_indices:  Vec<usize> = Vec::new();
                 for var_pos in new_clause_vars.iter() {
@@ -722,6 +725,7 @@ impl Solver {
                 let num_go_back = assigned.len() - 1 - go_back_to;
                 // this hack loop is backing up further if all of the newly-learned clauses's lits are still assigned
                 // println!("num go back: {}", num_go_back);
+                // std::process::exit(1);
                 for _i in 0..num_go_back {
                     // println!("465 debug: {}", debug_465);
                     hack_loop_test = true;
@@ -763,6 +767,8 @@ impl Solver {
                 }
                 
                 if !hack_loop_test {
+                    // println!("{}", debug_465);
+                    // std::process::exit(1);
                     let mut assignment = assigned[assigned.len() - 1];
                     // println!("assignment: {}", assignment);
                     if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {
