@@ -3,6 +3,8 @@ use crate::connections::{Connection, ConnectionGroup};
 use crate::variable::Variable;
 use crate::conflict_set::ConflictSet;
 use crate::sat_linked_hash_set::SatLinkedHashSet;
+use crate::implication_graph::ImplicationGraph;
+use crate::antecedent::Antecedent;
 
 // import required imports
 use std::collections::BTreeSet;
@@ -26,6 +28,7 @@ pub struct CurResult {
     pub connections_checked: usize,
     pub is_uc: bool,
     pub literal_sign: Option<bool>,
+    pub antecedent: Option<usize>,
 }
 
 pub struct CheckResult {
@@ -207,7 +210,7 @@ impl Solver {
         let mut max_deg = 0;
         let mut var_max_deg = usize::MAX;
         for var_pos in min_groups_vars.iter() {
-            let deg = 1065 - variable_unsat_groups.open_spots_len[*var_pos];
+            let deg = 500000 - variable_unsat_groups.open_spots_len[*var_pos];
             if deg > max_deg {
                 var_max_deg = *var_pos;
                 max_deg = deg;
@@ -223,6 +226,7 @@ impl Solver {
         let mut min_val: Option<usize> = None;
         let mut literal_sign: Option<bool> = None;
         let mut is_uc: bool = false;
+        let mut antecedent: Option<usize> = None;
 
         for group_index in unsat_groups.iter() {
             // println!("iter");
@@ -265,6 +269,7 @@ impl Solver {
                         == None
                     {
                         literal_sign = Some(self.connections.get(*connection).unwrap().val);
+                        antecedent = Some(*group_index);
                     }
                 }
                 break;
@@ -290,6 +295,7 @@ impl Solver {
                 connections_checked: 0,
                 is_uc,
                 literal_sign,
+                antecedent,
             }
         }
 
@@ -328,6 +334,7 @@ impl Solver {
             connections_checked: 0,
             is_uc,
             literal_sign,
+            antecedent,
         }
     }
 
@@ -488,6 +495,11 @@ impl Solver {
             var_assigned_index.push(0);
         }
 
+        let mut antecedents: Vec<Antecedent> = Vec::new();
+        for _i in 0..self.variables.len() {
+            antecedents.push(Antecedent::new());
+        }
+
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
             // gets the variable to assigned
@@ -495,6 +507,20 @@ impl Solver {
 
             // gets the variables position
             let pos = cur.pos;
+
+            let mut d: usize = 0;
+            if next_cur.is_uc {
+                if assigned.len() > 1 {
+                    d = antecedents[assigned.len() - 2].d;
+                }
+            } else {
+                if assigned.len() > 1 {
+                    d = antecedents[assigned.len() - 2].d + 1;
+                }
+            }
+            antecedents[assigned.len() - 1].is_uc = next_cur.is_uc;
+            antecedents[assigned.len() - 1].antecedent = next_cur.antecedent;
+            antecedents[assigned.len() - 1].d = d;
             
             let new_val: Option<bool>;
             if !next_cur.is_uc {
@@ -598,7 +624,8 @@ impl Solver {
                 let next_var_pos = next_cur.cur.unwrap();
                 assigned.push(next_var_pos);
                 for i in 0..conflict_set.list_len[next_var_pos] {
-                    conflict_set.var_set[next_var_pos][conflict_set.var_list[next_var_pos][i]] = false;
+                    let var_pos = conflict_set.var_list[next_var_pos][i];
+                    conflict_set.var_set[next_var_pos][var_pos] = false;
                 }
                 conflict_set.list_len[next_var_pos] = 0;
                 // conflict_set[assigned[assigned.len() - 1]].clear();
@@ -607,8 +634,33 @@ impl Solver {
 
             // need a case in the following while to deal with exhausted first variable (unsatisfiable)
 
-            // else, if the value was false, go through and backtrack
+            // else, if the value was false, go through and backtrack (but first learn a clause)
             else {
+
+                // clause learning
+                // gonna start using check_res.min_g_ind as ant(k)
+                let implied: ImplicationGraph = ImplicationGraph::new(
+                    &assigned,
+                    &check_result.min_group_index.unwrap(),
+                    &antecedents,
+                    &var_assigned_index,
+                    &self.connection_groups,
+                    &self.connections,
+                );
+                let mut learned_clause = ConnectionGroup::new();
+                let learned_clause_index = self.connection_groups.len();
+                for con in implied.learned.iter() {
+                    let connection = self.connections.get(*con).unwrap();
+                    let var_pos = connection.var_pos;
+                    variable_unsat_groups.insert(var_pos, learned_clause_index);
+                    let learned_lit = Connection::new(var_pos, connection.val);
+                    let learned_lit_index = self.connections.len();
+                    self.connections.push(learned_lit);
+                    learned_clause.connections.push(learned_lit_index);
+                }
+                self.connection_groups.push(learned_clause);
+                unsat_groups.insert(learned_clause_index);
+
                 let mut assignment = assigned[assigned.len() - 1];
                 // println!("assignment: {}", assignment);
                 if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {

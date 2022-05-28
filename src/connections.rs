@@ -14,3 +14,12 @@ impl Connection {
 pub struct ConnectionGroup {
     pub connections: Vec<usize>,
 }
+
+impl ConnectionGroup {
+    pub fn new() -> Self {
+        let connections: Vec<usize> = Vec::new();
+        ConnectionGroup {
+            connections,
+        }
+    }
+}
