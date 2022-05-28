@@ -16,10 +16,10 @@ impl ImplicationGraph {
 
         for con in groups.get(*ant_k).unwrap().connections.iter() {
             let connection = connections.get(*con).unwrap();
-            if connection.var_pos != assigned_var {
-                learned.insert(*con);
-                learned_anted.insert(*con);
-            }
+            // if connection.var_pos != assigned_var {
+            learned.insert(*con);
+            learned_anted.insert(*con);
+            // }
         }
 
         while !learned_anted.is_empty() {

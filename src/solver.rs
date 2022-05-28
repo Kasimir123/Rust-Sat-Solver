@@ -516,6 +516,8 @@ impl Solver {
 
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
+            
+            debug_465 += 1;
             // gets the variable to assigned
             let cur = self.variables.get(*assigned.last().unwrap()).unwrap();
 
@@ -678,8 +680,9 @@ impl Solver {
                     learned_clause.connections.push(learned_lit_index);
                 }
                 let test_learned = learned_clause.clone();
-                if learned_clause_index == 107 {
-                    debug_465 += 1;
+                // if learned_clause_index == 107 {
+                if debug_465 == 31 {
+                    // println!("DEBUG 465: {}", debug_465);
                     println!("num lits: {}", test_learned.connections.len());
                     let conflict_var = assigned[assigned.len() - 1];
                     println!("var of conflict is: {}", conflict_var);
@@ -688,7 +691,10 @@ impl Solver {
                     for con in test_learned.connections.iter() {
                         let var = self.connections.get(*con).unwrap().var_pos;
                         println!("var of lit is: {}", var);
-                        println!("assigned index is: {}", var_assigned_index[var]);
+                        let var_ass_ind = var_assigned_index[var];
+                        println!("assigned index is: {}", var_ass_ind );
+                        println!("is_unit: {}", antecedents[var_ass_ind].is_uc);
+                        println!("is_exhausted: {}", var_exhausted[var_ass_ind].unwrap());
                         if !self.check_connection(*con).unwrap() {
                             test_check_689 += 1
                         }
@@ -698,27 +704,27 @@ impl Solver {
                         }
                     }
                     println!("test_check_689 {}", test_check_689);
-                    std::process::exit(1);
+                    // std::process::exit(1);
                 }
                 self.connection_groups.push(learned_clause);
                 unsat_groups.insert(learned_clause_index);
                 let mut hack_loop_test = false;
+                let new_clause = &self.connection_groups[self.connection_groups.len() - 1];
+                let mut new_clause_vars: Vec<usize> = Vec::new();
+                for con in new_clause.connections.iter() {
+                    new_clause_vars.push(self.connections.get(*con).unwrap().var_pos);
+                }
+                let mut new_clause_var_indices:  Vec<usize> = Vec::new();
+                for var_pos in new_clause_vars.iter() {
+                    new_clause_var_indices.push(var_assigned_index[*var_pos]);
+                }
+                let go_back_to = *new_clause_var_indices.iter().max().unwrap();
+                let num_go_back = assigned.len() - 1 - go_back_to;
                 // this hack loop is backing up further if all of the newly-learned clauses's lits are still assigned
-                loop {
-                    // println!("761");
-                    let new_clause = &self.connection_groups[self.connection_groups.len() - 1];
-                    let num_lits = new_clause.connections.len();
-                    let mut check_759 = 0;
-                    for con in new_clause.connections.iter() {
-                        if !self.check_connection(*con).unwrap() {
-                            check_759 += 1
-                        }
-                    }
-                    if check_759 != num_lits {
-                        break;
-                    } else {
-                        hack_loop_test = true;
-                    }
+                // println!("num go back: {}", num_go_back);
+                for _i in 0..num_go_back {
+                    println!("465 debug: {}", debug_465);
+                    hack_loop_test = true;
                     var_exhausted[assigned.len() - 1] = None;
                     for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
                         let group = groups_sat_at_assignment[assigned.len() - 2][i];
@@ -734,6 +740,26 @@ impl Solver {
                     let to_reset = assigned.pop().unwrap();
                     self.variables[to_reset].value = None;
                     self.backtracks += 1;
+                }
+                if hack_loop_test {
+                    // pop until not exhausted
+                    while matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {
+                        var_exhausted[assigned.len() - 1] = None;
+                        for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
+                            let group = groups_sat_at_assignment[assigned.len() - 2][i];
+                            unsat_groups.insert(group);
+                            let con_group = self.connection_groups.get(group).unwrap();
+                            for con in con_group.connections.iter() {
+                                let var = self.connections.get(*con).unwrap().var_pos;
+                                if !variable_unsat_groups.contains(var, group) {
+                                    variable_unsat_groups.insert(var, group);
+                                }
+                            }
+                        }
+                        let to_reset = assigned.pop().unwrap();
+                        self.variables[to_reset].value = None;
+                        self.backtracks += 1;
+                    }
                 }
                 
                 if !hack_loop_test {
