@@ -34,6 +34,11 @@ impl ImplicationGraph {
                     // var_max_assigned_index = Some(var);
                     con_max_assigned_index = Some(*con);
                 }
+                // if matches!(max_assigned_index, None) || assigned_index < max_assigned_index.unwrap() {
+                //     max_assigned_index = Some(assigned_index);
+                //     // var_max_assigned_index = Some(var);
+                //     con_max_assigned_index = Some(*con);
+                // }
             }
             learned_anted.remove(&con_max_assigned_index.unwrap());
             if !antecedents[max_assigned_index.unwrap()].is_uc {
