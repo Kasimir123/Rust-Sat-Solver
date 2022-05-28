@@ -518,8 +518,10 @@ impl Solver {
 
         let mut var_assigned_index: Vec<usize> = Vec::new();
         for _i in 0..self.variables.len() {
-            var_assigned_index.push(0);
+            var_assigned_index.push(0);            
         }
+
+        let mut prev_restart: usize = 0;
 
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
@@ -676,6 +678,8 @@ impl Solver {
                 //     println!("num lits in learned clause: {}", implied.learned.len());
                 //     std::process::exit(1);
                 // }
+                let mut hack_loop_test = false;
+
                 for con in implied.learned.iter() {
                     let connection = self.connections.get(*con).unwrap();
                     let var_pos = connection.var_pos;
@@ -715,7 +719,6 @@ impl Solver {
                 // }
                 self.connection_groups.push(learned_clause);
                 unsat_groups.insert(learned_clause_index);
-                let mut hack_loop_test = false;
                 let new_clause = &self.connection_groups[self.connection_groups.len() - 1];
                 let mut new_clause_vars: Vec<usize> = Vec::new();
                 for con in new_clause.connections.iter() {
@@ -812,6 +815,10 @@ impl Solver {
                         }
                     }
                 }
+            }
+            if self.backtracks > prev_restart + 256 {
+                prev_restart = self.backtracks;
+                // restart
             }
         }
 
