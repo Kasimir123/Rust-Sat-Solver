@@ -462,7 +462,7 @@ impl Solver {
 
     // solves the sat problem
     pub fn solve(&mut self) -> SolveResult {
-        let mut  debug_465 = 0;
+        // let mut  debug_465 = 0;
 
         // println!("num con_groups var 5: {}", self.variable_connections[5].len());
         
@@ -517,7 +517,7 @@ impl Solver {
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
             
-            debug_465 += 1;
+            // debug_465 += 1;
             // gets the variable to assigned
             let cur = self.variables.get(*assigned.last().unwrap()).unwrap();
 
@@ -679,33 +679,33 @@ impl Solver {
                     self.connections.push(learned_lit);
                     learned_clause.connections.push(learned_lit_index);
                 }
-                let test_learned = learned_clause.clone();
-                // if learned_clause_index == 107 {
-                if debug_465 == 31 {
-                    // println!("DEBUG 465: {}", debug_465);
-                    println!("num lits: {}", test_learned.connections.len());
-                    let conflict_var = assigned[assigned.len() - 1];
-                    println!("var of conflict is: {}", conflict_var);
-                    println!("assigned index is: {}", var_assigned_index[conflict_var]);
-                    let mut test_check_689 = 0;
-                    for con in test_learned.connections.iter() {
-                        let var = self.connections.get(*con).unwrap().var_pos;
-                        println!("var of lit is: {}", var);
-                        let var_ass_ind = var_assigned_index[var];
-                        println!("assigned index is: {}", var_ass_ind );
-                        println!("is_unit: {}", antecedents[var_ass_ind].is_uc);
-                        println!("is_exhausted: {}", var_exhausted[var_ass_ind].unwrap());
-                        if !self.check_connection(*con).unwrap() {
-                            test_check_689 += 1
-                        }
-                        if self.variables.get(var).unwrap().value == None {
-                            println!("clause is unfinished because var {}", var);
-                            std::process::exit(1);
-                        }
-                    }
-                    println!("test_check_689 {}", test_check_689);
-                    // std::process::exit(1);
-                }
+                // let test_learned = learned_clause.clone();
+                // // if learned_clause_index == 107 {
+                // if debug_465 == 31 {
+                //     // println!("DEBUG 465: {}", debug_465);
+                //     println!("num lits: {}", test_learned.connections.len());
+                //     let conflict_var = assigned[assigned.len() - 1];
+                //     println!("var of conflict is: {}", conflict_var);
+                //     println!("assigned index is: {}", var_assigned_index[conflict_var]);
+                //     let mut test_check_689 = 0;
+                //     for con in test_learned.connections.iter() {
+                //         let var = self.connections.get(*con).unwrap().var_pos;
+                //         println!("var of lit is: {}", var);
+                //         let var_ass_ind = var_assigned_index[var];
+                //         println!("assigned index is: {}", var_ass_ind );
+                //         println!("is_unit: {}", antecedents[var_ass_ind].is_uc);
+                //         println!("is_exhausted: {}", var_exhausted[var_ass_ind].unwrap());
+                //         if !self.check_connection(*con).unwrap() {
+                //             test_check_689 += 1
+                //         }
+                //         if self.variables.get(var).unwrap().value == None {
+                //             println!("clause is unfinished because var {}", var);
+                //             std::process::exit(1);
+                //         }
+                //     }
+                //     println!("test_check_689 {}", test_check_689);
+                //     // std::process::exit(1);
+                // }
                 self.connection_groups.push(learned_clause);
                 unsat_groups.insert(learned_clause_index);
                 let mut hack_loop_test = false;
@@ -723,7 +723,7 @@ impl Solver {
                 // this hack loop is backing up further if all of the newly-learned clauses's lits are still assigned
                 // println!("num go back: {}", num_go_back);
                 for _i in 0..num_go_back {
-                    println!("465 debug: {}", debug_465);
+                    // println!("465 debug: {}", debug_465);
                     hack_loop_test = true;
                     var_exhausted[assigned.len() - 1] = None;
                     for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
