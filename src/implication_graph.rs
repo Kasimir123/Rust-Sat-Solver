@@ -11,22 +11,22 @@ impl ImplicationGraph {
     pub fn new(assigned: &Vec<usize>, ant_k: &usize, antecedents: &Vec<Antecedent>, var_assigned_index: &Vec<usize>, groups: &Vec<ConnectionGroup>, connections: &Vec<Connection>) -> Self {
         let assigned_var = assigned[assigned.len() - 1];
         let mut learned: BTreeSet<usize> = BTreeSet::new();
-        let mut learned_anted: BTreeSet<usize> = BTreeSet::new();
+        let mut learned_not_anted: BTreeSet<usize> = BTreeSet::new();
         let d = antecedents[assigned.len() - 1].d;
 
         for con in groups.get(*ant_k).unwrap().connections.iter() {
             let connection = connections.get(*con).unwrap();
             // if connection.var_pos != assigned_var {
             learned.insert(*con);
-            learned_anted.insert(*con);
+            learned_not_anted.insert(*con);
             // }
         }
 
-        while !learned_anted.is_empty() {
+        while !learned_not_anted.is_empty() {
             let mut max_assigned_index: Option<usize> = None;
             // let mut var_max_assigned_index: Option<usize> = None;
             let mut con_max_assigned_index: Option<usize> = None;
-            for con in learned_anted.iter() {
+            for con in learned_not_anted.iter() {
                 let var = connections.get(*con).unwrap().var_pos;
                 let assigned_index = var_assigned_index[var];
                 if matches!(max_assigned_index, None) || assigned_index > max_assigned_index.unwrap() {
@@ -40,7 +40,7 @@ impl ImplicationGraph {
                 //     con_max_assigned_index = Some(*con);
                 // }
             }
-            learned_anted.remove(&con_max_assigned_index.unwrap());
+            learned_not_anted.remove(&con_max_assigned_index.unwrap());
             if !antecedents[max_assigned_index.unwrap()].is_uc {
                 continue;
             }
@@ -74,11 +74,11 @@ impl ImplicationGraph {
             }
             for con in add_to_learned.iter() {
                 learned.insert(*con);
-                learned_anted.insert(*con);
+                learned_not_anted.insert(*con);
             }
             for con in remove_from_learned.iter() {
                 learned.remove(con);
-                learned_anted.remove(con);
+                learned_not_anted.remove(con);
             }
             // if only one lit in learned with d = d, break
             let mut count: usize = 0;

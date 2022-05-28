@@ -480,8 +480,15 @@ impl Solver {
 
         let mut variable_unsat_groups: SatLinkedHashSet = SatLinkedHashSet::new(&self.variable_connections);
 
+        let mut antecedents: Vec<Antecedent> = Vec::new();
+        for _i in 0..self.variables.len() {
+            antecedents.push(Antecedent::new());
+        }
+
         // push the first value into the assigned values
         let next_cur = self.get_next_cur(&unsat_groups, &variable_unsat_groups);
+        
+
 
         self.connections_checked += next_cur.connections_checked;
 
@@ -494,6 +501,11 @@ impl Solver {
         }
 
         assigned.push(next_cur.cur.unwrap());
+
+        let mut d: usize = 0;
+        antecedents[assigned.len() - 1].is_uc = next_cur.is_uc;
+        antecedents[assigned.len() - 1].antecedent = next_cur.antecedent;
+        antecedents[assigned.len() - 1].d = d;
 
         // initializing vector to keep track of lcv value assignments
         let mut var_exhausted: Vec<Option<bool>> = Vec::new();
@@ -509,11 +521,6 @@ impl Solver {
             var_assigned_index.push(0);
         }
 
-        let mut antecedents: Vec<Antecedent> = Vec::new();
-        for _i in 0..self.variables.len() {
-            antecedents.push(Antecedent::new());
-        }
-
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
             
@@ -523,20 +530,6 @@ impl Solver {
 
             // gets the variables position
             let pos = cur.pos;
-
-            let mut d: usize = 0;
-            if next_cur.is_uc {
-                if assigned.len() > 1 {
-                    d = antecedents[assigned.len() - 2].d;
-                }
-            } else {
-                if assigned.len() > 1 {
-                    d = antecedents[assigned.len() - 2].d + 1;
-                }
-            }
-            antecedents[assigned.len() - 1].is_uc = next_cur.is_uc;
-            antecedents[assigned.len() - 1].antecedent = next_cur.antecedent;
-            antecedents[assigned.len() - 1].d = d;
             
             let new_val: Option<bool>;
             if !next_cur.is_uc {
@@ -639,6 +632,20 @@ impl Solver {
 
                 let next_var_pos = next_cur.cur.unwrap();
                 assigned.push(next_var_pos);
+
+                if next_cur.is_uc {
+                    if assigned.len() > 1 {
+                        d = antecedents[assigned.len() - 2].d;
+                    }
+                } else {
+                    if assigned.len() > 1 {
+                        d = antecedents[assigned.len() - 2].d + 1;
+                    }
+                }
+                antecedents[assigned.len() - 1].is_uc = next_cur.is_uc;
+                antecedents[assigned.len() - 1].antecedent = next_cur.antecedent;
+                antecedents[assigned.len() - 1].d = d;
+
                 for i in 0..conflict_set.list_len[next_var_pos] {
                     let var_pos = conflict_set.var_list[next_var_pos][i];
                     conflict_set.var_set[next_var_pos][var_pos] = false;
@@ -679,9 +686,9 @@ impl Solver {
                     self.connections.push(learned_lit);
                     learned_clause.connections.push(learned_lit_index);
                 }
-                // let test_learned = learned_clause.clone();
-                // // if learned_clause_index == 107 {
-                // if debug_465 == 3 {
+                // if learned_clause_index == 107 {
+                // if debug_465 == 81 {
+                //     let test_learned = learned_clause.clone();
                 //     // println!("DEBUG 465: {}", debug_465);
                 //     println!("num lits: {}", test_learned.connections.len());
                 //     let conflict_var = assigned[assigned.len() - 1];
@@ -713,14 +720,15 @@ impl Solver {
                 let mut new_clause_vars: Vec<usize> = Vec::new();
                 for con in new_clause.connections.iter() {
                     let var = self.connections.get(*con).unwrap().var_pos;
-                    if !antecedents[var_assigned_index[var]].is_uc {
-                        new_clause_vars.push(var);
-                    }
+                    // if !antecedents[var_assigned_index[var]].is_uc {
+                    new_clause_vars.push(var);
+                    // }
                 }
                 let mut new_clause_var_indices:  Vec<usize> = Vec::new();
                 for var_pos in new_clause_vars.iter() {
                     new_clause_var_indices.push(var_assigned_index[*var_pos]);
                 }
+                // println!("{}", new_clause_var_indices.len());
                 let go_back_to = *new_clause_var_indices.iter().max().unwrap();
                 let num_go_back = assigned.len() - 1 - go_back_to;
                 // this hack loop is backing up further if all of the newly-learned clauses's lits are still assigned
