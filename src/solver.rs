@@ -753,26 +753,6 @@ impl Solver {
                     self.variables[to_reset].value = None;
                     self.backtracks += 1;
                 }
-                if hack_loop_test {
-                    // pop until not exhausted
-                    while matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {
-                        var_exhausted[assigned.len() - 1] = None;
-                        for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
-                            let group = groups_sat_at_assignment[assigned.len() - 2][i];
-                            unsat_groups.insert(group);
-                            let con_group = self.connection_groups.get(group).unwrap();
-                            for con in con_group.connections.iter() {
-                                let var = self.connections.get(*con).unwrap().var_pos;
-                                if !variable_unsat_groups.contains(var, group) {
-                                    variable_unsat_groups.insert(var, group);
-                                }
-                            }
-                        }
-                        let to_reset = assigned.pop().unwrap();
-                        self.variables[to_reset].value = None;
-                        self.backtracks += 1;
-                    }
-                }
                 
                 if !hack_loop_test {
                     // println!("{}", debug_465);
