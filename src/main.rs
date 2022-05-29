@@ -22,8 +22,8 @@ fn main() {
     // let start_multi = Instant::now();
     // // make sure everything completes (prints the failed file name if user error)
     // // let paths = std::fs::read_dir("./benchmark-cases/20-sat/").unwrap();
-    // let paths = std::fs::read_dir("./benchmark-cases/50-sat/").unwrap();
-    // // let paths = std::fs::read_dir("./benchmark-cases/100-sat/").unwrap();
+    // // let paths = std::fs::read_dir("./benchmark-cases/50-sat/").unwrap();
+    // let paths = std::fs::read_dir("./benchmark-cases/100-sat/").unwrap();
     // // let paths = std::fs::read_dir("./benchmark-cases/150-sat/").unwrap();
     // // let paths = std::fs::read_dir("./benchmark-cases/175-sat/").unwrap();
     // for path in paths {
@@ -58,8 +58,8 @@ fn main() {
     // let f = "./benchmark-cases/uf75.cnf";
     // let f = "./benchmark-cases/uf100.cnf";
     // let f = "./benchmark-cases/uf125.cnf";
-    let f = "./benchmark-cases/uf150.cnf";
-    // let f = "./benchmark-cases/uf175.cnf";
+    // let f = "./benchmark-cases/uf150.cnf";
+    let f = "./benchmark-cases/uf175.cnf";
     // let f = "./benchmark-cases/uf200.cnf";
     // let f = "./benchmark-cases/uf250.cnf";
     

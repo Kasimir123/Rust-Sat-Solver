@@ -210,7 +210,7 @@ impl Solver {
         let mut max_deg = 0;
         let mut var_max_deg = usize::MAX;
         for var_pos in min_groups_vars.iter() {
-            let deg = 500000 - variable_unsat_groups.open_spots_len[*var_pos];
+            let deg = 100000 - variable_unsat_groups.open_spots_len[*var_pos];
             // println!("deg: {}", deg);
             if deg > max_deg {
                 var_max_deg = *var_pos;
@@ -462,6 +462,7 @@ impl Solver {
 
     // solves the sat problem
     pub fn solve(&mut self) -> SolveResult {
+        let mut used_conflict_set = 0;
         let mut  debug_465 = 0;
 
         // println!("num con_groups var 5: {}", self.variable_connections[5].len());
@@ -680,81 +681,95 @@ impl Solver {
                 // }
                 let mut hack_loop_test = false;
 
+                let mut num_d: BTreeSet<usize> = BTreeSet::new();
                 for con in implied.learned.iter() {
                     let connection = self.connections.get(*con).unwrap();
                     let var_pos = connection.var_pos;
-                    variable_unsat_groups.insert(var_pos, learned_clause_index);
-                    self.variable_connections[var_pos].push(learned_clause_index);
-                    let learned_lit = Connection::new(var_pos, connection.val);
-                    let learned_lit_index = self.connections.len();
-                    self.connections.push(learned_lit);
-                    learned_clause.connections.push(learned_lit_index);
+                    let var_index = var_assigned_index[var_pos];
+                    let var_d = antecedents[var_index].d;
+                    num_d.insert(var_d);
                 }
-                // if learned_clause_index == 107 {
-                // if debug_465 == 81 {
-                //     let test_learned = learned_clause.clone();
-                //     // println!("DEBUG 465: {}", debug_465);
-                //     println!("num lits: {}", test_learned.connections.len());
-                //     let conflict_var = assigned[assigned.len() - 1];
-                //     println!("var of conflict is: {}", conflict_var);
-                //     println!("assigned index is: {}", var_assigned_index[conflict_var]);
-                //     let mut test_check_689 = 0;
-                //     for con in test_learned.connections.iter() {
-                //         let var = self.connections.get(*con).unwrap().var_pos;
-                //         println!("var of lit is: {}", var);
-                //         let var_ass_ind = var_assigned_index[var];
-                //         println!("assigned index is: {}", var_ass_ind );
-                //         println!("is_unit: {}", antecedents[var_ass_ind].is_uc);
-                //         println!("is_exhausted: {}", var_exhausted[var_ass_ind].unwrap());
-                //         if !self.check_connection(*con).unwrap() {
-                //             test_check_689 += 1
-                //         }
-                //         if self.variables.get(var).unwrap().value == None {
-                //             println!("clause is unfinished because var {}", var);
-                //             std::process::exit(1);
-                //         }
-                //     }
-                //     println!("test_check_689 {}", test_check_689);
-                //     // std::process::exit(1);
-                // }
-                self.connection_groups.push(learned_clause);
-                unsat_groups.insert(learned_clause_index);
-                let new_clause = &self.connection_groups[self.connection_groups.len() - 1];
-                let mut new_clause_vars: Vec<usize> = Vec::new();
-                for con in new_clause.connections.iter() {
-                    let var = self.connections.get(*con).unwrap().var_pos;
-                    // if !antecedents[var_assigned_index[var]].is_uc {
-                    new_clause_vars.push(var);
-                    // }
-                }
-                let mut new_clause_var_indices:  Vec<usize> = Vec::new();
-                for var_pos in new_clause_vars.iter() {
-                    new_clause_var_indices.push(var_assigned_index[*var_pos]);
-                }
-                // println!("{}", new_clause_var_indices.len());
-                let go_back_to = *new_clause_var_indices.iter().max().unwrap();
-                let num_go_back = assigned.len() - 1 - go_back_to;
-                // this hack loop is backing up further if all of the newly-learned clauses's lits are still assigned
-                // println!("num go back: {}", num_go_back);
-                // std::process::exit(1);
-                for _i in 0..num_go_back {
-                    // println!("465 debug: {}", debug_465);
-                    hack_loop_test = true;
-                    var_exhausted[assigned.len() - 1] = None;
-                    for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
-                        let group = groups_sat_at_assignment[assigned.len() - 2][i];
-                        unsat_groups.insert(group);
-                        let con_group = self.connection_groups.get(group).unwrap();
-                        for con in con_group.connections.iter() {
-                            let var = self.connections.get(*con).unwrap().var_pos;
-                            if !variable_unsat_groups.contains(var, group) {
-                                variable_unsat_groups.insert(var, group);
-                            }
-                        }
+                if num_d.len() < 3 {
+                // if true {
+                    for con in implied.learned.iter() {
+                        let connection = self.connections.get(*con).unwrap();
+                        let var_pos = connection.var_pos;
+                        variable_unsat_groups.insert(var_pos, learned_clause_index);
+                        self.variable_connections[var_pos].push(learned_clause_index);
+                        let learned_lit = Connection::new(var_pos, connection.val);
+                        let learned_lit_index = self.connections.len();
+                        self.connections.push(learned_lit);
+                        learned_clause.connections.push(learned_lit_index);
                     }
-                    let to_reset = assigned.pop().unwrap();
-                    self.variables[to_reset].value = None;
-                    self.backtracks += 1;
+                    // // if learned_clause_index == 107 {
+                    // if debug_465 > 81 {
+                    //     let test_learned = learned_clause.clone();
+                    //     // println!("DEBUG 465: {}", debug_465);
+                    //     println!("num lits: {}", test_learned.connections.len());
+                    //     let conflict_var = assigned[assigned.len() - 1];
+                    //     println!("var of conflict is: {}", conflict_var);
+                    //     println!("assigned index is: {}", var_assigned_index[conflict_var]);
+                    //     let mut test_check_689 = 0;
+                    //     for con in test_learned.connections.iter() {
+                    //         let var = self.connections.get(*con).unwrap().var_pos;
+                    //         println!("var of lit is: {}", var);
+                    //         let var_ass_ind = var_assigned_index[var];
+                    //         println!("assigned index is: {}", var_ass_ind );
+                    //         println!("is_unit: {}", antecedents[var_ass_ind].is_uc);
+                    //         println!("is_exhausted: {}", var_exhausted[var_ass_ind].unwrap());
+                    //         if !self.check_connection(*con).unwrap() {
+                    //             test_check_689 += 1
+                    //         }
+                    //         if self.variables.get(var).unwrap().value == None {
+                    //             println!("clause is unfinished because var {}", var);
+                    //             std::process::exit(1);
+                    //         }
+                    //     }
+                    //     println!("test_check_689 {}", test_check_689);
+                    //     std::process::exit(1);
+                    // }
+                    self.connection_groups.push(learned_clause);
+                    unsat_groups.insert(learned_clause_index);
+
+                    // // aparrently the learned clause always includes the most recently assigned variable
+                    // let new_clause = &self.connection_groups[self.connection_groups.len() - 1];
+                    // let mut new_clause_vars: Vec<usize> = Vec::new();
+                    // for con in new_clause.connections.iter() {
+                    //     let var = self.connections.get(*con).unwrap().var_pos;
+                    //     // if !antecedents[var_assigned_index[var]].is_uc {
+                    //     new_clause_vars.push(var);
+                    //     // }
+                    // }
+                    // let mut new_clause_var_indices:  Vec<usize> = Vec::new();
+                    // for var_pos in new_clause_vars.iter() {
+                    //     new_clause_var_indices.push(var_assigned_index[*var_pos]);
+                    // }
+                    // // println!("{}", new_clause_var_indices.len());
+                    // let go_back_to = *new_clause_var_indices.iter().max().unwrap();
+                    // let num_go_back = assigned.len() - 1 - go_back_to;
+                    // // this hack loop is backing up further if all of the newly-learned clauses's lits are still assigned
+                    // // println!("num go back: {}", num_go_back);
+                    // // std::process::exit(1);
+                    // for _i in 0..num_go_back {
+                    //     println!("test");
+                    //     // println!("465 debug: {}", debug_465);
+                    //     hack_loop_test = true;
+                    //     var_exhausted[assigned.len() - 1] = None;
+                    //     for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
+                    //         let group = groups_sat_at_assignment[assigned.len() - 2][i];
+                    //         unsat_groups.insert(group);
+                    //         let con_group = self.connection_groups.get(group).unwrap();
+                    //         for con in con_group.connections.iter() {
+                    //             let var = self.connections.get(*con).unwrap().var_pos;
+                    //             if !variable_unsat_groups.contains(var, group) {
+                    //                 variable_unsat_groups.insert(var, group);
+                    //             }
+                    //         }
+                    //     }
+                    //     let to_reset = assigned.pop().unwrap();
+                    //     self.variables[to_reset].value = None;
+                    //     self.backtracks += 1;
+                    // }
                 }
                 
                 if !hack_loop_test {
@@ -812,10 +827,13 @@ impl Solver {
                             let to_reset = assigned.pop().unwrap();
                             self.variables[to_reset].value = None;
                             self.backtracks += 1;
+                            // used_conflict_set += 1;
                         }
                     }
                 }
             }
+            let percent_used = ((used_conflict_set as f64) / ((self.backtracks + 1) as f64)) * (100 as f64);
+            // println!("{}", percent_used);
             if self.backtracks > prev_restart + 256 {
                 prev_restart = self.backtracks;
                 let num_pop = assigned.len() - 1;
