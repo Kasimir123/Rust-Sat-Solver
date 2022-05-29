@@ -818,6 +818,38 @@ impl Solver {
             }
             if self.backtracks > prev_restart + 256 {
                 prev_restart = self.backtracks;
+                let num_pop = assigned.len() - 1;
+                for _i in 0..num_pop {
+                    var_exhausted[assigned.len() - 1] = None;
+                    for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
+                        let group = groups_sat_at_assignment[assigned.len() - 2][i];
+                        unsat_groups.insert(group);
+                        let con_group = self.connection_groups.get(group).unwrap();
+                        for con in con_group.connections.iter() {
+                            let var = self.connections.get(*con).unwrap().var_pos;
+                            if !variable_unsat_groups.contains(var, group) {
+                                variable_unsat_groups.insert(var, group);
+                            }
+                        }
+                    }
+                    let to_reset = assigned.pop().unwrap();
+                    self.variables[to_reset].value = None;
+                    // self.backtracks += 1;
+                }
+                let to_reset = assigned.pop().unwrap();
+                self.variables[to_reset].value = None;
+                let next_var_pos = next_cur.cur.unwrap();
+                assigned.push(next_var_pos);
+                var_exhausted[assigned.len() - 1] = None;
+                antecedents[assigned.len() - 1].is_uc = next_cur.is_uc;
+                antecedents[assigned.len() - 1].antecedent = next_cur.antecedent;
+                antecedents[assigned.len() - 1].d = 0;
+                for i in 0..conflict_set.list_len[next_var_pos] {
+                    let var_pos = conflict_set.var_list[next_var_pos][i];
+                    conflict_set.var_set[next_var_pos][var_pos] = false;
+                }
+                conflict_set.list_len[next_var_pos] = 0;
+                var_assigned_index[next_var_pos] = assigned.len() - 1;
                 // restart
             }
         }
