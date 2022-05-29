@@ -468,7 +468,7 @@ impl Solver {
 
     // solves the sat problem
     pub fn solve(&mut self) -> SolveResult {
-        let mut cur_lbd: f64 = 0.0; // should really make this an option
+        let mut cur_lbd: f64;
         let mut s_t_a_q_lbd: VecDeque<f64> = VecDeque::new();
         let mut s_t_a_lbd: f64 = 0.0;
         let mut cum_lbd: f64 = 0.0;
@@ -479,8 +479,8 @@ impl Solver {
 
         let mut learned_clauses: Vec<LearnedClause> = Vec::new();
 
-        let mut used_conflict_set = 0;
-        let mut  debug_465 = 0;
+        // let mut used_conflict_set = 0;
+        // let mut  debug_465 = 0;
 
         // println!("num con_groups var 5: {}", self.variable_connections[5].len());
         
@@ -544,7 +544,7 @@ impl Solver {
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
             
-            debug_465 += 1;
+            // debug_465 += 1;
             // gets the variable to assigned
             let cur = self.variables.get(*assigned.last().unwrap()).unwrap();
 
@@ -705,7 +705,7 @@ impl Solver {
                 //     println!("num lits in learned clause: {}", implied.learned.len());
                 //     std::process::exit(1);
                 // }
-                let mut hack_loop_test = false;
+                let hack_loop_test = false;
 
                 let mut num_d: BTreeSet<usize> = BTreeSet::new();
                 for con in implied.learned.iter() {

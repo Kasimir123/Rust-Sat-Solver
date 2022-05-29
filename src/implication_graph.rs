@@ -9,13 +9,13 @@ pub struct ImplicationGraph {
 
 impl ImplicationGraph {
     pub fn new(assigned: &Vec<usize>, ant_k: &usize, antecedents: &Vec<Antecedent>, var_assigned_index: &Vec<usize>, groups: &Vec<ConnectionGroup>, connections: &Vec<Connection>) -> Self {
-        let assigned_var = assigned[assigned.len() - 1];
+        // let assigned_var = assigned[assigned.len() - 1];
         let mut learned: BTreeSet<usize> = BTreeSet::new();
         let mut learned_not_anted: BTreeSet<usize> = BTreeSet::new();
         let d = antecedents[assigned.len() - 1].d;
 
         for con in groups.get(*ant_k).unwrap().connections.iter() {
-            let connection = connections.get(*con).unwrap();
+            // let connection = connections.get(*con).unwrap();
             // if connection.var_pos != assigned_var {
             learned.insert(*con);
             learned_not_anted.insert(*con);
