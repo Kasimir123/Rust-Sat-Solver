@@ -681,11 +681,11 @@ impl Solver {
             else {
                 tot_conflicts += 1.0;
                 cur_a = (assigned.len() - 1) as f64;
-                // 100 or 200 and 1 or 2 was fast for 175
-                if s_t_a_q_a.len() < 200 {
+                //  200 and 2 is fast for 175
+                if s_t_a_q_a.len() < 500 {
                     s_t_a_a = s_t_a_a + (cur_a - s_t_a_a) / tot_conflicts;
                 } else {
-                    s_t_a_a = s_t_a_a + cur_a / 200.0 - s_t_a_q_a.pop_front().unwrap() / 200.0;
+                    s_t_a_a = s_t_a_a + cur_a / 500.0 - s_t_a_q_a.pop_front().unwrap() / 500.0;
                 }
                 s_t_a_q_a.push_back(cur_a);
 
