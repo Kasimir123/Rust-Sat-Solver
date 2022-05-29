@@ -462,6 +462,10 @@ impl Solver {
 
     // solves the sat problem
     pub fn solve(&mut self) -> SolveResult {
+        let mut cur_lbd: f64 = 0.0; // should really make this an option
+        let mut cum_lbd: f64 = 0.0;
+        let mut tot_conflicts: f64 = 0.0;
+
         let mut used_conflict_set = 0;
         let mut  debug_465 = 0;
 
@@ -662,6 +666,7 @@ impl Solver {
 
             // else, if the value was false, go through and backtrack (but first learn a clause)
             else {
+                tot_conflicts += 1.0;
 
                 // clause learning
                 // gonna start using check_res.min_g_ind as ant(k)
@@ -689,8 +694,14 @@ impl Solver {
                     let var_d = antecedents[var_index].d;
                     num_d.insert(var_d);
                 }
-                if num_d.len() < 3 {
-                // if true {
+                cur_lbd = num_d.len() as f64;
+                if cum_lbd == 0.0 {
+                    cum_lbd = cur_lbd;
+                } else {
+                    cum_lbd = cum_lbd + (cur_lbd - cum_lbd) / tot_conflicts;
+                }
+                // if num_d.len() < 3 {
+                if true {
                     for con in implied.learned.iter() {
                         let connection = self.connections.get(*con).unwrap();
                         let var_pos = connection.var_pos;
@@ -832,43 +843,46 @@ impl Solver {
                     }
                 }
             }
-            let percent_used = ((used_conflict_set as f64) / ((self.backtracks + 1) as f64)) * (100 as f64);
+            // let percent_used = ((used_conflict_set as f64) / ((self.backtracks + 1) as f64)) * (100 as f64);
             // println!("{}", percent_used);
-            if self.backtracks > prev_restart + 256 {
-                prev_restart = self.backtracks;
-                let num_pop = assigned.len() - 1;
-                for _i in 0..num_pop {
-                    var_exhausted[assigned.len() - 1] = None;
-                    for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
-                        let group = groups_sat_at_assignment[assigned.len() - 2][i];
-                        unsat_groups.insert(group);
-                        let con_group = self.connection_groups.get(group).unwrap();
-                        for con in con_group.connections.iter() {
-                            let var = self.connections.get(*con).unwrap().var_pos;
-                            if !variable_unsat_groups.contains(var, group) {
-                                variable_unsat_groups.insert(var, group);
+            // 50 is min restart
+            if self.backtracks > prev_restart + 50 {
+                if cur_lbd / cum_lbd > 1.25 {
+                    prev_restart = self.backtracks;
+                    let num_pop = assigned.len() - 1;
+                    for _i in 0..num_pop {
+                        var_exhausted[assigned.len() - 1] = None;
+                        for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
+                            let group = groups_sat_at_assignment[assigned.len() - 2][i];
+                            unsat_groups.insert(group);
+                            let con_group = self.connection_groups.get(group).unwrap();
+                            for con in con_group.connections.iter() {
+                                let var = self.connections.get(*con).unwrap().var_pos;
+                                if !variable_unsat_groups.contains(var, group) {
+                                    variable_unsat_groups.insert(var, group);
+                                }
                             }
                         }
+                        let to_reset = assigned.pop().unwrap();
+                        self.variables[to_reset].value = None;
+                        // self.backtracks += 1;
                     }
                     let to_reset = assigned.pop().unwrap();
                     self.variables[to_reset].value = None;
-                    // self.backtracks += 1;
+                    let next_var_pos = next_cur.cur.unwrap();
+                    assigned.push(next_var_pos);
+                    var_exhausted[assigned.len() - 1] = None;
+                    antecedents[assigned.len() - 1].is_uc = next_cur.is_uc;
+                    antecedents[assigned.len() - 1].antecedent = next_cur.antecedent;
+                    antecedents[assigned.len() - 1].d = 0;
+                    for i in 0..conflict_set.list_len[next_var_pos] {
+                        let var_pos = conflict_set.var_list[next_var_pos][i];
+                        conflict_set.var_set[next_var_pos][var_pos] = false;
+                    }
+                    conflict_set.list_len[next_var_pos] = 0;
+                    var_assigned_index[next_var_pos] = assigned.len() - 1;
+                    // restart
                 }
-                let to_reset = assigned.pop().unwrap();
-                self.variables[to_reset].value = None;
-                let next_var_pos = next_cur.cur.unwrap();
-                assigned.push(next_var_pos);
-                var_exhausted[assigned.len() - 1] = None;
-                antecedents[assigned.len() - 1].is_uc = next_cur.is_uc;
-                antecedents[assigned.len() - 1].antecedent = next_cur.antecedent;
-                antecedents[assigned.len() - 1].d = 0;
-                for i in 0..conflict_set.list_len[next_var_pos] {
-                    let var_pos = conflict_set.var_list[next_var_pos][i];
-                    conflict_set.var_set[next_var_pos][var_pos] = false;
-                }
-                conflict_set.list_len[next_var_pos] = 0;
-                var_assigned_index[next_var_pos] = assigned.len() - 1;
-                // restart
             }
         }
 
