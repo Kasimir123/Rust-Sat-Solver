@@ -477,7 +477,8 @@ impl Solver {
         let mut s_t_a_a: f64 = 0.0;
         let mut tot_conflicts: f64 = 0.0;
 
-        let mut learned_clauses: Vec<LearnedClause> = Vec::new();
+        let mut learned_clauses: BTreeSet<usize> = BTreeSet::new();
+        let mut learned_clause_inds: Vec<LearnedClause> = Vec::new();
 
         // let mut used_conflict_set = 0;
         // let mut  debug_465 = 0;
@@ -539,7 +540,7 @@ impl Solver {
             var_assigned_index.push(0);            
         }
 
-        let mut prev_restart: usize = 0;
+        let mut prev_restart: f64 = 0.0;
 
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
@@ -681,7 +682,11 @@ impl Solver {
             else {
                 tot_conflicts += 1.0;
                 cur_a = (assigned.len() - 1) as f64;
-                //  200 and 2 is fast for 175
+                // using self.backtracks instead of tot_conflicts for restart measure
+                //  200 and 2 (50 min conflict) is fast for 175
+                // also 500 and 2 (50 min) for 175
+                // 2500 and 12 is decent for 175
+                //
                 if s_t_a_q_a.len() < 500 {
                     s_t_a_a = s_t_a_a + (cur_a - s_t_a_a) / tot_conflicts;
                 } else {
@@ -765,7 +770,8 @@ impl Solver {
                     self.connection_groups.push(learned_clause);
                     unsat_groups.insert(learned_clause_index);
 
-                    learned_clauses.push(LearnedClause::new(num_d.len(), implied.learned.len(), learned_clause_index));
+                    learned_clause_inds.push(LearnedClause::new(num_d.len(), implied.learned.len(), learned_clause_index));
+                    learned_clauses.insert(learned_clause_inds.len() - 1);
 
                     // // aparrently the learned clause always includes the most recently assigned variable
                     // let new_clause = &self.connection_groups[self.connection_groups.len() - 1];
@@ -871,9 +877,9 @@ impl Solver {
             // let percent_used = ((used_conflict_set as f64) / ((self.backtracks + 1) as f64)) * (100 as f64);
             // println!("{}", percent_used);
             // 50 is min restart
-            if self.backtracks > prev_restart + 50 {
+            if tot_conflicts > prev_restart + 50.0 {
                 if s_t_a_lbd / cum_lbd > 1.25 && !(cur_a > s_t_a_a) {
-                    prev_restart = self.backtracks;
+                    prev_restart = tot_conflicts;
                     let num_pop = assigned.len() - 1;
                     for _i in 0..num_pop {
                         var_exhausted[assigned.len() - 1] = None;
@@ -909,26 +915,27 @@ impl Solver {
 
                     // trim clauses
                     // this doesn't have to be done every restart
-                    let mut clauses_removed = Vec::new();
+                    let mut clauses_to_remove = Vec::new();
                     for learned_clause in learned_clauses.iter() {
-                        let num_lits = learned_clause.lits;
-                        let clause_lbd = learned_clause.lbd;
-                        if clause_lbd > 3 || (clause_lbd > 2 && num_lits > 2) {
-                            clauses_removed.push(learned_clause);
+                        let the_index = &learned_clause_inds[*learned_clause].index;
+                        let the_clause = &learned_clause_inds[*learned_clause];
+                        if !(the_clause.lits < 3 || (the_clause.lbd == 2)) {
+                        // if !(the_clause.lbd < 3 || )
+                            clauses_to_remove.push(*the_index);
                         }
                     }
-                    for clause in clauses_removed.iter() {
-                        let group_index = clause.index;
-                        let group = self.connection_groups.get(group_index).unwrap();
+                    for group_index in clauses_to_remove.iter() {
+                        let group = self.connection_groups.get(*group_index).unwrap();
                         unsat_groups.remove(&group_index);
                         for con in group.connections.iter() {
                             let connection = self.connections.get(*con).unwrap();
                             let var = connection.var_pos;
-                            variable_unsat_groups.remove(var, group_index);
+                            variable_unsat_groups.remove(var, *group_index);
                         }
-
+                        // learned_clauses.remove(group_index);
                     }
                     learned_clauses.clear();
+                    learned_clause_inds.clear();
                 }
             }
         }
