@@ -5,9 +5,10 @@ use crate::conflict_set::ConflictSet;
 use crate::sat_linked_hash_set::SatLinkedHashSet;
 use crate::implication_graph::ImplicationGraph;
 use crate::antecedent::Antecedent;
+use crate::learned_clause::LearnedClause;
 
 // import required imports
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, VecDeque};
 use std::error::Error;
 use std::io::{BufRead, BufReader, Read};
 
@@ -460,11 +461,23 @@ impl Solver {
         }
     }
 
+    // pub fn delete_groups(&self, learned_clauses: &BTreeSet<LearnedClause>) -> Vec<LearnedClause> {
+    //     let mut clauses_removed = 
+    //     clauses_removed
+    // }
+
     // solves the sat problem
     pub fn solve(&mut self) -> SolveResult {
         let mut cur_lbd: f64 = 0.0; // should really make this an option
+        let mut s_t_a_q_lbd: VecDeque<f64> = VecDeque::new();
+        let mut s_t_a_lbd: f64 = 0.0;
         let mut cum_lbd: f64 = 0.0;
+        let mut cur_a: f64 = 0.0; // should be an option
+        let mut s_t_a_q_a: VecDeque<f64> = VecDeque::new();
+        let mut s_t_a_a: f64 = 0.0;
         let mut tot_conflicts: f64 = 0.0;
+
+        let mut learned_clauses: Vec<LearnedClause> = Vec::new();
 
         let mut used_conflict_set = 0;
         let mut  debug_465 = 0;
@@ -667,6 +680,14 @@ impl Solver {
             // else, if the value was false, go through and backtrack (but first learn a clause)
             else {
                 tot_conflicts += 1.0;
+                cur_a = (assigned.len() - 1) as f64;
+                // 100 or 200 and 1 or 2 was fast for 175
+                if s_t_a_q_a.len() < 200 {
+                    s_t_a_a = s_t_a_a + (cur_a - s_t_a_a) / tot_conflicts;
+                } else {
+                    s_t_a_a = s_t_a_a + cur_a / 200.0 - s_t_a_q_a.pop_front().unwrap() / 200.0;
+                }
+                s_t_a_q_a.push_back(cur_a);
 
                 // clause learning
                 // gonna start using check_res.min_g_ind as ant(k)
@@ -695,11 +716,13 @@ impl Solver {
                     num_d.insert(var_d);
                 }
                 cur_lbd = num_d.len() as f64;
-                if cum_lbd == 0.0 {
-                    cum_lbd = cur_lbd;
+                cum_lbd = cum_lbd + (cur_lbd - cum_lbd) / tot_conflicts;
+                if s_t_a_q_lbd.len() < 2 {
+                    s_t_a_lbd = cum_lbd;
                 } else {
-                    cum_lbd = cum_lbd + (cur_lbd - cum_lbd) / tot_conflicts;
+                    s_t_a_lbd = s_t_a_lbd + cur_lbd / 2.0 - s_t_a_q_lbd.pop_front().unwrap() / 2.0;
                 }
+                s_t_a_q_lbd.push_back(cur_lbd);
                 // if num_d.len() < 3 {
                 if true {
                     for con in implied.learned.iter() {
@@ -741,6 +764,8 @@ impl Solver {
                     // }
                     self.connection_groups.push(learned_clause);
                     unsat_groups.insert(learned_clause_index);
+
+                    learned_clauses.push(LearnedClause::new(num_d.len(), implied.learned.len(), learned_clause_index));
 
                     // // aparrently the learned clause always includes the most recently assigned variable
                     // let new_clause = &self.connection_groups[self.connection_groups.len() - 1];
@@ -847,7 +872,7 @@ impl Solver {
             // println!("{}", percent_used);
             // 50 is min restart
             if self.backtracks > prev_restart + 50 {
-                if cur_lbd / cum_lbd > 1.25 {
+                if s_t_a_lbd / cum_lbd > 1.25 && !(cur_a > s_t_a_a) {
                     prev_restart = self.backtracks;
                     let num_pop = assigned.len() - 1;
                     for _i in 0..num_pop {
@@ -881,7 +906,29 @@ impl Solver {
                     }
                     conflict_set.list_len[next_var_pos] = 0;
                     var_assigned_index[next_var_pos] = assigned.len() - 1;
-                    // restart
+
+                    // trim clauses
+                    // this doesn't have to be done every restart
+                    let mut clauses_removed = Vec::new();
+                    for learned_clause in learned_clauses.iter() {
+                        let num_lits = learned_clause.lits;
+                        let clause_lbd = learned_clause.lbd;
+                        if clause_lbd > 3 || (clause_lbd > 2 && num_lits > 2) {
+                            clauses_removed.push(learned_clause);
+                        }
+                    }
+                    for clause in clauses_removed.iter() {
+                        let group_index = clause.index;
+                        let group = self.connection_groups.get(group_index).unwrap();
+                        unsat_groups.remove(&group_index);
+                        for con in group.connections.iter() {
+                            let connection = self.connections.get(*con).unwrap();
+                            let var = connection.var_pos;
+                            variable_unsat_groups.remove(var, group_index);
+                        }
+
+                    }
+                    learned_clauses.clear();
                 }
             }
         }

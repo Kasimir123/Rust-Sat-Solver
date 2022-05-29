@@ -6,6 +6,7 @@ pub mod conflict_set;
 pub mod sat_linked_hash_set;
 pub mod implication_graph;
 pub mod antecedent;
+pub mod learned_clause;
 
 // import solver
 use solver::Solver;
@@ -22,8 +23,8 @@ fn main() {
     // let start_multi = Instant::now();
     // // make sure everything completes (prints the failed file name if user error)
     // // let paths = std::fs::read_dir("./benchmark-cases/20-sat/").unwrap();
-    // // let paths = std::fs::read_dir("./benchmark-cases/50-sat/").unwrap();
-    // let paths = std::fs::read_dir("./benchmark-cases/100-sat/").unwrap();
+    // let paths = std::fs::read_dir("./benchmark-cases/50-sat/").unwrap();
+    // // let paths = std::fs::read_dir("./benchmark-cases/100-sat/").unwrap();
     // // let paths = std::fs::read_dir("./benchmark-cases/150-sat/").unwrap();
     // // let paths = std::fs::read_dir("./benchmark-cases/175-sat/").unwrap();
     // for path in paths {
