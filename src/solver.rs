@@ -742,6 +742,7 @@ impl Solver {
                 if true {
                     // if num_d.len() < 3 {
                     if true {
+                    // if implied.learned.len() < 5 {
                         let mut lits = Vec::new();
                         for con in implied.learned.iter() {
                             let connection = *self.connections.get(*con).unwrap();
