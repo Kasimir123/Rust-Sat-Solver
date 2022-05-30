@@ -472,7 +472,7 @@ impl Solver {
         let mut s_t_a_q_lbd: VecDeque<f64> = VecDeque::new();
         let mut s_t_a_lbd: f64 = 0.0;
         let mut cum_lbd: f64 = 0.0;
-        let mut cur_a: f64;
+        let mut cur_a: f64 = 0.0;
         let mut s_t_a_q_a: VecDeque<f64> = VecDeque::new();
         let mut l_t_a_q_a: VecDeque<f64> = VecDeque::new();
         let mut s_t_a_a: f64 = 0.0;
@@ -701,16 +701,16 @@ impl Solver {
                 // also 500 and 2 (50 min) for 175
                 // 2500 and 12 is decent for 175 (considering the high numbers are often awful)
                 //
-                // if s_t_a_q_a.len() < 256 {
-                //     s_t_a_a = s_t_a_a + (cur_a - s_t_a_a) / tot_conflicts;
-                // } else {
-                //     s_t_a_a = s_t_a_a + cur_a / 256.0 - s_t_a_q_a.pop_front().unwrap() / 256.0;
-                // }
-                // s_t_a_q_a.push_back(cur_a);
-                // if l_t_a_q_a.len() < 512 {
+                if s_t_a_q_a.len() < 500 {
+                    s_t_a_a = s_t_a_a + (cur_a - s_t_a_a) / tot_conflicts;
+                } else {
+                    s_t_a_a = s_t_a_a + cur_a / 500.0 - s_t_a_q_a.pop_front().unwrap() / 500.0;
+                }
+                s_t_a_q_a.push_back(cur_a);
+                // if l_t_a_q_a.len() < 128 {
                 //     l_t_a_a = l_t_a_a + (cur_a - l_t_a_a) / tot_conflicts;
                 // } else {
-                //     l_t_a_a = l_t_a_a + cur_a / 512.0 - l_t_a_q_a.pop_front().unwrap() / 512.0;
+                //     l_t_a_a = l_t_a_a + cur_a / 128.0 - l_t_a_q_a.pop_front().unwrap() / 128.0;
                 // }
                 // l_t_a_q_a.push_back(cur_a);
 
@@ -755,18 +755,18 @@ impl Solver {
                         lits.sort();
                         if !unique_clauses.contains(&lits) {
                             tot_clauses_learned += 1.0;
-                            if s_t_a_q_a.len() < 64 {
-                                s_t_a_a = s_t_a_a + (cur_a - s_t_a_a) / tot_clauses_learned;
-                            } else {
-                                s_t_a_a = s_t_a_a + cur_a / 64.0 - s_t_a_q_a.pop_front().unwrap() / 64.0;
-                            }
-                            s_t_a_q_a.push_back(cur_a);
-                            if l_t_a_q_a.len() < 512 {
-                                l_t_a_a = l_t_a_a + (cur_a - l_t_a_a) / tot_clauses_learned;
-                            } else {
-                                l_t_a_a = l_t_a_a + cur_a / 512.0 - l_t_a_q_a.pop_front().unwrap() / 512.0;
-                            }
-                            l_t_a_q_a.push_back(cur_a);
+                            // if s_t_a_q_a.len() < 64 {
+                            //     s_t_a_a = s_t_a_a + (cur_a - s_t_a_a) / tot_clauses_learned;
+                            // } else {
+                            //     s_t_a_a = s_t_a_a + cur_a / 64.0 - s_t_a_q_a.pop_front().unwrap() / 64.0;
+                            // }
+                            // s_t_a_q_a.push_back(cur_a);
+                            // if l_t_a_q_a.len() < 512 {
+                            //     l_t_a_a = l_t_a_a + (cur_a - l_t_a_a) / tot_clauses_learned;
+                            // } else {
+                            //     l_t_a_a = l_t_a_a + cur_a / 512.0 - l_t_a_q_a.pop_front().unwrap() / 512.0;
+                            // }
+                            // l_t_a_q_a.push_back(cur_a);
                             unique_clauses.insert(lits);
                             for con in implied.learned.iter() {
                                 let connection = self.connections.get(*con).unwrap();
@@ -925,14 +925,14 @@ impl Solver {
             // let percent_used = ((used_conflict_set as f64) / ((self.backtracks + 1) as f64)) * (100 as f64);
             // println!("{}", percent_used);
             // 50 is min restart
-            // if tot_conflicts > prev_restart + 512.0 {
-            if tot_clauses_learned > prev_clauses_learned + 64.0 {
+            if tot_conflicts > prev_restart + 50.0 {
+            // if tot_clauses_learned > prev_clauses_learned + 128.0 {
                 // if s_t_a_lbd / cum_lbd > 1.25 && !(cur_a > s_t_a_a) {
                 // if s_t_a_lbd / cum_lbd > 1.1 && !(cur_a > s_t_a_a) {
                 //     cum_lbd = s_t_a_lbd;
-                // if tot_clauses_learned > prev_clauses_learned + 20 && !(cur_a > s_t_a_a) {
-                if s_t_a_a < l_t_a_a {
-                    println!("{}", tot_conflicts);
+                if tot_clauses_learned > prev_clauses_learned + 20.0 && !(cur_a > s_t_a_a) {
+                // if s_t_a_a < l_t_a_a {
+                    // println!("{}", tot_conflicts);
                     // println!("{}", tot_clauses_learned);
                     prev_clauses_learned = tot_clauses_learned;
                     prev_restart = tot_conflicts;
