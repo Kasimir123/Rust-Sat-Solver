@@ -8,9 +8,6 @@ use crate::antecedent::Antecedent;
 // use crate::learned_clause::LearnedClause;
 use crate::moving_average_queue::MovingAverageQueue;
 
-// use heapless::spsc::Queue;
-// use heapless::consts::*;
-
 // import required imports
 use std::collections::{BTreeSet, VecDeque};
 use std::error::Error;
@@ -487,6 +484,7 @@ impl Solver {
         let mut tot_conflicts_usize: usize = 0;
 
         // need to check what sort() really does to con vec
+        // I might still be adding non-unique clauses
         let mut unique_clauses: BTreeSet<Vec<Connection>> = BTreeSet::new();
         for group in self.connection_groups.iter() {
             let mut lits = Vec::new();
@@ -494,8 +492,6 @@ impl Solver {
                 lits.push(*self.connections.get(*con).unwrap());
             }
             lits.sort();
-            // let clone = lits.clone();
-            // unique_clauses.insert(clone);
             unique_clauses.insert(lits);
         }
         let mut tot_clauses_learned: f64 = unique_clauses.len() as f64;
@@ -503,6 +499,9 @@ impl Solver {
         let mut recent_max: usize = 0;
         let mut recent_max_conflicts: usize = 0;
         let mut recent_max_switch: usize = 0;
+
+        let mut prev_restart: f64 = 0.0;
+        let mut prev_restart_usize: usize = 0;
         
         // let mut used_conflict_set = 0;
         // let mut  debug_465 = 0;
@@ -563,9 +562,6 @@ impl Solver {
         for _i in 0..self.variables.len() {
             var_assigned_index.push(0);            
         }
-
-        let mut prev_restart: f64 = 0.0;
-        let mut prev_restart_usize: usize = 0;
 
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
@@ -712,31 +708,14 @@ impl Solver {
                 tot_conflicts += 1.0;
                 tot_conflicts_usize += 1;
                 cur_a = (assigned.len() - 1) as f64;
-                // using self.backtracks instead of tot_conflicts for restart measure
-                //  200 and 2 (50 min conflict) is fast for 175
-                // also 500 and 2 (50 min) for 175
-                //
-                // I think this queue thing is really slow
-                // if s_t_a_q_a.len() < 500 {
                 if s_t_a_q_a.len < 500 {
                     s_t_a_a = s_t_a_a + (cur_a - s_t_a_a) / tot_conflicts;
                 } else {
-                    // s_t_a_a = s_t_a_a + cur_a / 500.0 - s_t_a_q_a.pop_front().unwrap() / 500.0;
-                    // s_t_a_a = s_t_a_a + cur_a / 500.0 - s_t_a_q_a.dequeue().unwrap() / 500.0;
                     s_t_a_a = s_t_a_a + cur_a / 500.0 - s_t_a_q_a.d() / 500.0;
                 }
-                // s_t_a_q_a.push_back(cur_a);
                 s_t_a_q_a.e(cur_a);
-                // assert!(s_t_a_q_a.enqueue(cur_a).is_ok());
-                // if l_t_a_q_a.len() < 500 {
-                //     l_t_a_a = l_t_a_a + (cur_a - l_t_a_a) / tot_conflicts;
-                // } else {
-                //     l_t_a_a = l_t_a_a + cur_a / 500.0 - l_t_a_q_a.pop_front().unwrap() / 500.0;
-                // }
-                // l_t_a_q_a.push_back(cur_a);
 
                 // clause learning
-                // gonna start using check_res.min_g_ind as ant(k)
                 let implied: ImplicationGraph = ImplicationGraph::new(
                     &assigned,
                     &check_result.min_group_index.unwrap(),
@@ -747,11 +726,6 @@ impl Solver {
                 );
                 let mut learned_clause = ConnectionGroup::new();
                 let learned_clause_index = self.connection_groups.len();
-                // if learned_clause_index == 107 {
-                //     println!("num lits in learned clause: {}", implied.learned.len());
-                //     std::process::exit(1);
-                // }
-                let hack_loop_test = false;
 
                 let mut num_d: BTreeSet<usize> = BTreeSet::new();
                 for con in implied.learned.iter() {
@@ -763,183 +737,74 @@ impl Solver {
                 }
                 // if num_d.len() < 3 {
                 if true {
-                    // if num_d.len() < 3 {
-                    if true {
-                    // if implied.learned.len() < 5 {
-                        let mut lits = Vec::new();
-                        for con in implied.learned.iter() {
-                            let connection = *self.connections.get(*con).unwrap();
-                            // let con_clone = connection.clone();
-                            // lits.push(con_clone);
-                            lits.push(connection);
-                        }
-                        lits.sort();
-                        if !unique_clauses.contains(&lits) {
-                            tot_clauses_learned += 1.0;
-                            // if s_t_a_q_a.len() < 64 {
-                            //     s_t_a_a = s_t_a_a + (cur_a - s_t_a_a) / tot_clauses_learned;
-                            // } else {
-                            //     s_t_a_a = s_t_a_a + cur_a / 64.0 - s_t_a_q_a.pop_front().unwrap() / 64.0;
-                            // }
-                            // s_t_a_q_a.push_back(cur_a);
-                            // if l_t_a_q_a.len() < 512 {
-                            //     l_t_a_a = l_t_a_a + (cur_a - l_t_a_a) / tot_clauses_learned;
-                            // } else {
-                            //     l_t_a_a = l_t_a_a + cur_a / 512.0 - l_t_a_q_a.pop_front().unwrap() / 512.0;
-                            // }
-                            // l_t_a_q_a.push_back(cur_a);
-                            unique_clauses.insert(lits);
-                            for con in implied.learned.iter() {
-                                let connection = self.connections.get(*con).unwrap();
-                                let var_pos = connection.var_pos;
-                                variable_unsat_groups.insert(var_pos, learned_clause_index);
-                                self.variable_connections[var_pos].push(learned_clause_index);
-                                let learned_lit = Connection::new(var_pos, connection.val);
-                                let learned_lit_index = self.connections.len();
-                                self.connections.push(learned_lit);
-                                learned_clause.connections.push(learned_lit_index);
-                            }
-                            self.connection_groups.push(learned_clause);
-                            unsat_groups.insert(learned_clause_index);
-                            cur_lbd = num_d.len() as f64;
-                            cum_lbd = cum_lbd + (cur_lbd - cum_lbd) / tot_conflicts;
-                            if s_t_a_q_lbd.len() < 50 {
-                                s_t_a_lbd = cum_lbd;
-                            } else {
-                                s_t_a_lbd = s_t_a_lbd + cur_lbd / 50.0 - s_t_a_q_lbd.pop_front().unwrap() / 50.0;
-                            }
-                            s_t_a_q_lbd.push_back(cur_lbd);
-                        }
+                // if implied.learned.len() < 5 {
+                    let mut lits = Vec::new();
+                    for con in implied.learned.iter() {
+                        let connection = *self.connections.get(*con).unwrap();
+                        lits.push(connection);
                     }
-                    // // if learned_clause_index == 107 {
-                    // if debug_465 > 81 {
-                    //     let test_learned = learned_clause.clone();
-                    //     // println!("DEBUG 465: {}", debug_465);
-                    //     println!("num lits: {}", test_learned.connections.len());
-                    //     let conflict_var = assigned[assigned.len() - 1];
-                    //     println!("var of conflict is: {}", conflict_var);
-                    //     println!("assigned index is: {}", var_assigned_index[conflict_var]);
-                    //     let mut test_check_689 = 0;
-                    //     for con in test_learned.connections.iter() {
-                    //         let var = self.connections.get(*con).unwrap().var_pos;
-                    //         println!("var of lit is: {}", var);
-                    //         let var_ass_ind = var_assigned_index[var];
-                    //         println!("assigned index is: {}", var_ass_ind );
-                    //         println!("is_unit: {}", antecedents[var_ass_ind].is_uc);
-                    //         println!("is_exhausted: {}", var_exhausted[var_ass_ind].unwrap());
-                    //         if !self.check_connection(*con).unwrap() {
-                    //             test_check_689 += 1
-                    //         }
-                    //         if self.variables.get(var).unwrap().value == None {
-                    //             println!("clause is unfinished because var {}", var);
-                    //             std::process::exit(1);
-                    //         }
-                    //     }
-                    //     println!("test_check_689 {}", test_check_689);
-                    //     std::process::exit(1);
-                    // }
-
-                    // learned_clause_inds.push(LearnedClause::new(num_d.len(), implied.learned.len(), learned_clause_index));
-                    // learned_clauses.insert(learned_clause_inds.len() - 1);
-
-                    // // aparrently the learned clause always includes the most recently assigned variable so commenting out
-                    // let new_clause = &self.connection_groups[self.connection_groups.len() - 1];
-                    // let mut new_clause_vars: Vec<usize> = Vec::new();
-                    // for con in new_clause.connections.iter() {
-                    //     let var = self.connections.get(*con).unwrap().var_pos;
-                    //     // if !antecedents[var_assigned_index[var]].is_uc {
-                    //     new_clause_vars.push(var);
-                    //     // }
-                    // }
-                    // let mut new_clause_var_indices:  Vec<usize> = Vec::new();
-                    // for var_pos in new_clause_vars.iter() {
-                    //     new_clause_var_indices.push(var_assigned_index[*var_pos]);
-                    // }
-                    // // println!("{}", new_clause_var_indices.len());
-                    // let go_back_to = *new_clause_var_indices.iter().max().unwrap();
-                    // let num_go_back = assigned.len() - 1 - go_back_to;
-                    // // this hack loop is backing up further if all of the newly-learned clauses's lits are still assigned
-                    // // println!("num go back: {}", num_go_back);
-                    // // std::process::exit(1);
-                    // for _i in 0..num_go_back {
-                    //     println!("test");
-                    //     // println!("465 debug: {}", debug_465);
-                    //     hack_loop_test = true;
-                    //     var_exhausted[assigned.len() - 1] = None;
-                    //     for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
-                    //         let group = groups_sat_at_assignment[assigned.len() - 2][i];
-                    //         unsat_groups.insert(group);
-                    //         let con_group = self.connection_groups.get(group).unwrap();
-                    //         for con in con_group.connections.iter() {
-                    //             let var = self.connections.get(*con).unwrap().var_pos;
-                    //             if !variable_unsat_groups.contains(var, group) {
-                    //                 variable_unsat_groups.insert(var, group);
-                    //             }
-                    //         }
-                    //     }
-                    //     let to_reset = assigned.pop().unwrap();
-                    //     self.variables[to_reset].value = None;
-                    //     self.backtracks += 1;
-                    // }
+                    lits.sort();
+                    if !unique_clauses.contains(&lits) {
+                        tot_clauses_learned += 1.0;
+                        unique_clauses.insert(lits);
+                        for con in implied.learned.iter() {
+                            let connection = self.connections.get(*con).unwrap();
+                            let var_pos = connection.var_pos;
+                            variable_unsat_groups.insert(var_pos, learned_clause_index);
+                            self.variable_connections[var_pos].push(learned_clause_index);
+                            let learned_lit = Connection::new(var_pos, connection.val);
+                            let learned_lit_index = self.connections.len();
+                            self.connections.push(learned_lit);
+                            learned_clause.connections.push(learned_lit_index);
+                        }
+                        self.connection_groups.push(learned_clause);
+                        unsat_groups.insert(learned_clause_index);
+                        cur_lbd = num_d.len() as f64;
+                        cum_lbd = cum_lbd + (cur_lbd - cum_lbd) / tot_conflicts;
+                        if s_t_a_q_lbd.len() < 50 {
+                            s_t_a_lbd = cum_lbd;
+                        } else {
+                            s_t_a_lbd = s_t_a_lbd + cur_lbd / 50.0 - s_t_a_q_lbd.pop_front().unwrap() / 50.0;
+                        }
+                        s_t_a_q_lbd.push_back(cur_lbd);
+                    }
                 }
                 
-                if !hack_loop_test {
-                    // println!("{}", debug_465);
-                    // std::process::exit(1);
-                    let mut assignment = assigned[assigned.len() - 1];
-                    // println!("assignment: {}", assignment);
-                    if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {
-                        loop {
-                            if conflict_set.var_set[assignment][assigned[assigned.len() - 1]] {
-                                for i in 0..conflict_set.list_len[assignment] {
-                                    let move_conflict = conflict_set.var_list[assignment][i];
-                                    let last_var = assigned[assigned.len() - 1];
-                                    if !conflict_set.var_set[last_var][move_conflict] {
-                                        conflict_set.var_list[last_var][conflict_set.list_len[last_var]] = move_conflict;
-                                        conflict_set.list_len[last_var] += 1;
-                                        conflict_set.var_set[last_var][move_conflict] = true;
-                                    }
-                                }
-                                assignment = assigned[assigned.len() - 1];
-                                // do I need to remove assignment from its own conflict set?
-                                if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(false))) {
-                                    break;
+                // backtracking
+                let mut assignment = assigned[assigned.len() - 1];
+                if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {
+                    loop {
+                        if conflict_set.var_set[assignment][assigned[assigned.len() - 1]] {
+                            for i in 0..conflict_set.list_len[assignment] {
+                                let move_conflict = conflict_set.var_list[assignment][i];
+                                let last_var = assigned[assigned.len() - 1];
+                                if !conflict_set.var_set[last_var][move_conflict] {
+                                    conflict_set.var_list[last_var][conflict_set.list_len[last_var]] = move_conflict;
+                                    conflict_set.list_len[last_var] += 1;
+                                    conflict_set.var_set[last_var][move_conflict] = true;
                                 }
                             }
-                            var_exhausted[assigned.len() - 1] = None;
-                            for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
-                                let group = groups_sat_at_assignment[assigned.len() - 2][i];
-                                unsat_groups.insert(group);
-                                let con_group = self.connection_groups.get(group).unwrap();
-                                for con in con_group.connections.iter() {
-                                    let var = self.connections.get(*con).unwrap().var_pos;
-                                    // if var == 5 {
-                                    //     println!("ADDING pos: {}, assigned.len(): {}, group: {}", pos, assigned.len(), group);
-                                    //     let mut len_5 = 1;
-                                    //     let mut head_5 = &variable_unsat_groups.var_lists[5][variable_unsat_groups.heads[5]];
-                                    //     while head_5.next != usize::MAX {
-                                    //         len_5 += 1;
-                                    //         head_5 = &variable_unsat_groups.var_lists[5][head_5.next];
-                                    //     }
-                                    //     println!("len_5: {}", len_5);
-                                    //     if len_5 > 16 {
-                                    //         std::process::exit(1);
-                                    //     }
-                                    // }
-                                    // I think I can remove this condition, but leaving it for safety until everything else works
-                                    if !variable_unsat_groups.contains(var, group) {
-                                        variable_unsat_groups.insert(var, group);
-                                    }
-                                    // let node: Node<usize> = variable_unsat_groups.var_lists[var].push_head(group);
-                                    // variable_unsat_groups.var_sets[var][group].node = Some(node);
-                                    // variable_unsat_groups.var_sets[var][group].is_unsat = true;
-                                }
+                            assignment = assigned[assigned.len() - 1];
+                            // do I need to remove assignment from its own conflict set?
+                            if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(false))) {
+                                break;
                             }
-                            let to_reset = assigned.pop().unwrap();
-                            self.variables[to_reset].value = None;
-                            self.backtracks += 1;
-                            // used_conflict_set += 1;
                         }
+                        var_exhausted[assigned.len() - 1] = None;
+                        for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
+                            let group = groups_sat_at_assignment[assigned.len() - 2][i];
+                            unsat_groups.insert(group);
+                            let con_group = self.connection_groups.get(group).unwrap();
+                            for con in con_group.connections.iter() {
+                                let var = self.connections.get(*con).unwrap().var_pos;
+                                if !variable_unsat_groups.contains(var, group) {
+                                    variable_unsat_groups.insert(var, group);
+                                }
+                            }
+                        }
+                        let to_reset = assigned.pop().unwrap();
+                        self.variables[to_reset].value = None;
+                        self.backtracks += 1;
                     }
                 }
             }
@@ -949,60 +814,70 @@ impl Solver {
             // 50 is min number of conflicts since last restart
             // maybe don't need this... all I would need to do is check that
             // i've learned x new clauses
-            if tot_conflicts > prev_restart + 50.0 {
-            // if tot_clauses_learned > prev_clauses_learned + 128.0 {
-                // if s_t_a_lbd / cum_lbd > 1.25 && !(cur_a > s_t_a_a) {
-                // if s_t_a_lbd / cum_lbd > 1.1 && !(cur_a > s_t_a_a) {
-                //     cum_lbd = s_t_a_lbd;
-                // if tot_clauses_learned > prev_clauses_learned + 20.0 && !(s_t_a_a > l_t_a_a) {
-                // if tot_clauses_learned > prev_clauses_learned + 20.0 && !(cur_a > s_t_a_a - 10 as f64) {
-                if tot_clauses_learned > prev_clauses_learned + 20.0 && !(cur_a > s_t_a_a as f64) {
-                    if !(recent_max_conflicts > prev_restart_usize) {
-                        // println!("{}", tot_conflicts);
-                        // println!("{}", tot_clauses_learned);
-                        prev_clauses_learned = tot_clauses_learned;
-                        prev_restart = tot_conflicts;
-                        recent_max_switch = 0;
-                        prev_restart_usize = tot_conflicts_usize;
-                        let num_pop = assigned.len() - 1;
-                        for _i in 0..num_pop {
-                            var_exhausted[assigned.len() - 1] = None;
-                            for i in 0..groups_sat_at_assignment[assigned.len() - 2].len() {
-                                let group = groups_sat_at_assignment[assigned.len() - 2][i];
-                                unsat_groups.insert(group);
-                                let con_group = self.connection_groups.get(group).unwrap();
-                                for con in con_group.connections.iter() {
-                                    let var = self.connections.get(*con).unwrap().var_pos;
-                                    if !variable_unsat_groups.contains(var, group) {
-                                        variable_unsat_groups.insert(var, group);
-                                    }
+            if tot_conflicts > prev_restart + 50.0
+                && tot_clauses_learned > prev_clauses_learned + 20.0
+                && cur_a <= s_t_a_a as f64
+            {
+                if recent_max_conflicts <= prev_restart_usize {
+                    prev_clauses_learned = tot_clauses_learned;
+                    prev_restart = tot_conflicts;
+                    recent_max_switch = 0;
+                    prev_restart_usize = tot_conflicts_usize;
+                    let num_pop = assigned.len() - 1;
+                    for _i in 0..num_pop {
+                        var_exhausted[assigned.len() - 1] = None;
+                        for i in 0..groups_sat_at_assignment
+                            [assigned.len() - 2].len()
+                        {
+                            let group = groups_sat_at_assignment
+                                [assigned.len() - 2][i];
+                            unsat_groups.insert(group);
+                            let con_group =
+                                self
+                                .connection_groups
+                                .get(group)
+                                .unwrap();
+                            for con in con_group.connections.iter()
+                            {
+                                let var =
+                                    self
+                                    .connections
+                                    .get(*con)
+                                    .unwrap()
+                                    .var_pos;
+                                if !variable_unsat_groups
+                                    .contains(var, group)
+                                {
+                                    variable_unsat_groups
+                                        .insert(var, group);
                                 }
                             }
-                            let to_reset = assigned.pop().unwrap();
-                            self.variables[to_reset].value = None;
-                            // self.backtracks += 1;
                         }
                         let to_reset = assigned.pop().unwrap();
                         self.variables[to_reset].value = None;
-                        let next_var_pos = next_cur.cur.unwrap();
-                        assigned.push(next_var_pos);
-                        var_exhausted[assigned.len() - 1] = None;
-                        antecedents[assigned.len() - 1].is_uc = next_cur.is_uc;
-                        antecedents[assigned.len() - 1].antecedent = next_cur.antecedent;
-                        antecedents[assigned.len() - 1].d = 0;
-                        for i in 0..conflict_set.list_len[next_var_pos] {
-                            let var_pos = conflict_set.var_list[next_var_pos][i];
-                            conflict_set.var_set[next_var_pos][var_pos] = false;
-                        }
-                        conflict_set.list_len[next_var_pos] = 0;
-                        var_assigned_index[next_var_pos] = assigned.len() - 1;
-                    } else {
-                        recent_max_switch += 1;
-                        if recent_max_switch > 1 {                            
-                            prev_restart_usize = recent_max_conflicts;
-                        }
+                        // self.backtracks += 1;
                     }
-                    // }
+                    let to_reset = assigned.pop().unwrap();
+                    self.variables[to_reset].value = None;
+                    let next_var_pos = next_cur.cur.unwrap();
+                    assigned.push(next_var_pos);
+                    var_exhausted[assigned.len() - 1] = None;
+                    antecedents[assigned.len() - 1].is_uc = next_cur.is_uc;
+                    antecedents[assigned.len() - 1]
+                        .antecedent = next_cur.antecedent;
+                    antecedents[assigned.len() - 1].d = 0;
+                    for i in 0..conflict_set.list_len[next_var_pos] {
+                        let var_pos = conflict_set
+                            .var_list[next_var_pos][i];
+                        conflict_set.var_set[next_var_pos][var_pos] = false;
+                    }
+                    conflict_set.list_len[next_var_pos] = 0;
+                    var_assigned_index[next_var_pos] = assigned.len() - 1;
+                } else {
+                    recent_max_switch += 1;
+                    if recent_max_switch > 1 {                            
+                        prev_restart_usize = recent_max_conflicts;
+                    }
                 }
             }
         }
