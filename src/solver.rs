@@ -484,6 +484,7 @@ impl Solver {
         let mut s_t_a_a: f64 = 0.0;
         // let mut l_t_a_a: f64 = 0.0;
         let mut tot_conflicts: f64 = 0.0;
+        let mut tot_conflicts_usize: usize = 0;
 
         // need to check what sort() really does to con vec
         let mut unique_clauses: BTreeSet<Vec<Connection>> = BTreeSet::new();
@@ -501,6 +502,7 @@ impl Solver {
         let mut prev_clauses_learned: f64 = tot_clauses_learned;
         let mut recent_max: usize = 0;
         let mut recent_max_conflicts: usize = 0;
+        let mut recent_max_switch: usize = 0;
         
         // let mut used_conflict_set = 0;
         // let mut  debug_465 = 0;
@@ -563,12 +565,13 @@ impl Solver {
         }
 
         let mut prev_restart: f64 = 0.0;
+        let mut prev_restart_usize: usize = 0;
 
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
             if assigned.len() > recent_max {
                 recent_max = assigned.len();
-                recent_max_conflicts = tot_conflicts as usize;
+                recent_max_conflicts = tot_conflicts_usize;
             }
             
             // debug_465 += 1;
@@ -707,27 +710,28 @@ impl Solver {
             // else, if the value was false, go through and backtrack (but first learn a clause)
             else {
                 tot_conflicts += 1.0;
+                tot_conflicts_usize += 1;
                 cur_a = (assigned.len() - 1) as f64;
                 // using self.backtracks instead of tot_conflicts for restart measure
                 //  200 and 2 (50 min conflict) is fast for 175
-                // also 250 and 2 (50 min) for 175
+                // also 500 and 2 (50 min) for 175
                 //
                 // I think this queue thing is really slow
-                // if s_t_a_q_a.len() < 250 {
-                if s_t_a_q_a.len < 250 {
+                // if s_t_a_q_a.len() < 500 {
+                if s_t_a_q_a.len < 500 {
                     s_t_a_a = s_t_a_a + (cur_a - s_t_a_a) / tot_conflicts;
                 } else {
-                    // s_t_a_a = s_t_a_a + cur_a / 250.0 - s_t_a_q_a.pop_front().unwrap() / 250.0;
-                    // s_t_a_a = s_t_a_a + cur_a / 250.0 - s_t_a_q_a.dequeue().unwrap() / 250.0;
-                    s_t_a_a = s_t_a_a + cur_a / 250.0 - s_t_a_q_a.d() / 250.0;
+                    // s_t_a_a = s_t_a_a + cur_a / 500.0 - s_t_a_q_a.pop_front().unwrap() / 500.0;
+                    // s_t_a_a = s_t_a_a + cur_a / 500.0 - s_t_a_q_a.dequeue().unwrap() / 500.0;
+                    s_t_a_a = s_t_a_a + cur_a / 500.0 - s_t_a_q_a.d() / 500.0;
                 }
                 // s_t_a_q_a.push_back(cur_a);
                 s_t_a_q_a.e(cur_a);
                 // assert!(s_t_a_q_a.enqueue(cur_a).is_ok());
-                // if l_t_a_q_a.len() < 250 {
+                // if l_t_a_q_a.len() < 500 {
                 //     l_t_a_a = l_t_a_a + (cur_a - l_t_a_a) / tot_conflicts;
                 // } else {
-                //     l_t_a_a = l_t_a_a + cur_a / 250.0 - l_t_a_q_a.pop_front().unwrap() / 250.0;
+                //     l_t_a_a = l_t_a_a + cur_a / 500.0 - l_t_a_q_a.pop_front().unwrap() / 500.0;
                 // }
                 // l_t_a_q_a.push_back(cur_a);
 
@@ -941,19 +945,25 @@ impl Solver {
             }
             // let percent_used = ((used_conflict_set as f64) / ((self.backtracks + 1) as f64)) * (100 as f64);
             // println!("{}", percent_used);
-            // 50 is min restart
-            if tot_conflicts > prev_restart + 25.0 {
+
+            // 50 is min number of conflicts since last restart
+            // maybe don't need this... all I would need to do is check that
+            // i've learned x new clauses
+            if tot_conflicts > prev_restart + 50.0 {
             // if tot_clauses_learned > prev_clauses_learned + 128.0 {
                 // if s_t_a_lbd / cum_lbd > 1.25 && !(cur_a > s_t_a_a) {
                 // if s_t_a_lbd / cum_lbd > 1.1 && !(cur_a > s_t_a_a) {
                 //     cum_lbd = s_t_a_lbd;
                 // if tot_clauses_learned > prev_clauses_learned + 20.0 && !(s_t_a_a > l_t_a_a) {
-                if tot_clauses_learned > prev_clauses_learned + 10.0 && !(cur_a > s_t_a_a) {
-                    if !(recent_max_conflicts as f64 > prev_restart) {
+                // if tot_clauses_learned > prev_clauses_learned + 20.0 && !(cur_a > s_t_a_a - 10 as f64) {
+                if tot_clauses_learned > prev_clauses_learned + 20.0 && !(cur_a > s_t_a_a as f64) {
+                    if !(recent_max_conflicts > prev_restart_usize) {
                         // println!("{}", tot_conflicts);
                         // println!("{}", tot_clauses_learned);
                         prev_clauses_learned = tot_clauses_learned;
                         prev_restart = tot_conflicts;
+                        recent_max_switch = 0;
+                        prev_restart_usize = tot_conflicts_usize;
                         let num_pop = assigned.len() - 1;
                         for _i in 0..num_pop {
                             var_exhausted[assigned.len() - 1] = None;
@@ -986,7 +996,13 @@ impl Solver {
                         }
                         conflict_set.list_len[next_var_pos] = 0;
                         var_assigned_index[next_var_pos] = assigned.len() - 1;
+                    } else {
+                        recent_max_switch += 1;
+                        if recent_max_switch > 1 {                            
+                            prev_restart_usize = recent_max_conflicts;
+                        }
                     }
+                    // }
                 }
             }
         }
