@@ -476,12 +476,13 @@ impl Solver {
         let mut s_t_a_lbd: f64 = 0.0;
         let mut cum_lbd: f64 = 0.0;
         let mut cur_a: f64 = 0.0;
-        let mut l_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new(5000);
+        let mut l_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new(500);
         let mut l_t_a_a: f64 = 0.0;
-        let mut s_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new(500);
+        let mut s_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new(250);
         let mut s_t_a_a: f64 = 0.0;
         let mut tot_conflicts: f64 = 0.0;
         let mut tot_conflicts_usize: usize = 0;
+        let mut prev_conflicts_usize: usize = 0;
 
         // need to check what sort() really does to con vec
         // I might still be adding non-unique clauses
@@ -501,7 +502,6 @@ impl Solver {
         let mut recent_max_switch: usize = 0;
 
         // let mut prev_restart: f64 = 0.0;
-        let mut prev_restart_usize: usize = 0;
         
         // let mut used_conflict_set = 0;
         // let mut  debug_465 = 0;
@@ -708,16 +708,16 @@ impl Solver {
                 tot_conflicts += 1.0;
                 tot_conflicts_usize += 1;
                 cur_a = (assigned.len() - 1) as f64;
-                if l_t_a_q_a.len < 5000 {
+                if l_t_a_q_a.len < 500 {
                     l_t_a_a = l_t_a_a + (cur_a - l_t_a_a) / tot_conflicts;
                 } else {
-                    l_t_a_a = l_t_a_a + cur_a / 5000.0 - l_t_a_q_a.d() / 5000.0;
+                    l_t_a_a = l_t_a_a + cur_a / 500.0 - l_t_a_q_a.d() / 500.0;
                 }
                 l_t_a_q_a.e(cur_a);
-                if s_t_a_q_a.len < 500 {
+                if s_t_a_q_a.len < 250 {
                     s_t_a_a = s_t_a_a + (cur_a - s_t_a_a) / tot_conflicts;
                 } else {
-                    s_t_a_a = s_t_a_a + cur_a / 500.0 - s_t_a_q_a.d() / 500.0;
+                    s_t_a_a = s_t_a_a + cur_a / 250.0 - s_t_a_q_a.d() / 250.0;
                 }
                 s_t_a_q_a.e(cur_a);
 
@@ -823,6 +823,12 @@ impl Solver {
             // let percent_used = ((used_conflict_set as f64) / ((self.backtracks + 1) as f64)) * (100 as f64);
             // println!("{}", percent_used);
 
+            // let moving_average_diff: f64 = (l_t_a_a - s_t_a_a).abs();
+            // let conflicts_since_restart = (tot_conflicts_usize - prev_conflicts_usize) as f64;
+            // let progress_slowdown = conflicts_since_restart
+            //     / moving_average_diff;
+            // let constant_based_on_problem_size: f64 = 50.0;
+
             // 50 is min number of conflicts since last restart
             // maybe don't need this... leaving it here because I might need
             // it for bigger problems
@@ -832,10 +838,11 @@ impl Solver {
                 && cur_a <= s_t_a_a
                 && s_t_a_a <= l_t_a_a
             {
-                if recent_max_conflicts <= prev_restart_usize {
+                println!("{}", tot_conflicts);
+                if recent_max_conflicts <= prev_conflicts_usize {
                     prev_clauses_learned = tot_clauses_learned;
                     // prev_restart = tot_conflicts;
-                    prev_restart_usize = tot_conflicts_usize;
+                    prev_conflicts_usize = tot_conflicts_usize;
                     recent_max_switch = 0;
                     let num_pop = assigned.len() - 1;
                     for _i in 0..num_pop {
@@ -887,7 +894,7 @@ impl Solver {
                 } else {
                     recent_max_switch += 1;
                     if recent_max_switch > 1 {                            
-                        prev_restart_usize = recent_max_conflicts;
+                        prev_conflicts_usize = recent_max_conflicts;
                     }
                 }
             }
