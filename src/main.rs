@@ -34,7 +34,7 @@ fn main() {
     //     solver
     //         .load_cnf(benchmark_file)
     //         .expect("failed to parse benchmark file");
-    //     // println!("Trying: {}", path.as_ref().unwrap().path().display());
+    //     println!("Trying: {}", path.as_ref().unwrap().path().display());
     //     solver.solve();
     //     if !solver.final_check() {
     //         println!("Failed: {}", path.unwrap().path().display());

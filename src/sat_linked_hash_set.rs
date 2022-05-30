@@ -28,14 +28,14 @@ impl SatLinkedHashSet {
         let mut heads: Vec<usize> = Vec::<usize>::with_capacity(250);
         let num_vars = variable_connections.len();
         for i in 0..num_vars {
-            let mut var_list: Vec<SatNode> = Vec::<SatNode>::with_capacity(100000);
-            let mut var_set: Vec<usize> = Vec::<usize>::with_capacity(100000);
-            let mut var_open_spots: Vec<usize> = Vec::<usize>::with_capacity(100000);
+            let mut var_list: Vec<SatNode> = Vec::<SatNode>::with_capacity(400000);
+            let mut var_set: Vec<usize> = Vec::<usize>::with_capacity(400000);
+            let mut var_open_spots: Vec<usize> = Vec::<usize>::with_capacity(400000);
             let mut var_open_spots_len: usize = 0;
             let head: usize = 0;
-            // don't forget there is a 100000 in len()
-            for j in 0..100000 {
-                var_open_spots.push(100000 - j - 1);
+            // don't forget there is a 400000 in len()
+            for j in 0..400000 {
+                var_open_spots.push(400000 - j - 1);
                 var_open_spots_len += 1;
                 var_list.push(SatNode { val: usize::MAX, next: usize::MAX, prev: usize::MAX });
                 var_set.push(usize::MAX);
@@ -66,9 +66,9 @@ impl SatLinkedHashSet {
             open_spots_len,
         }
     }
-    // couldn't figure out the borrow checker, so now 100000 is hard coded in solver.rs
+    // couldn't figure out the borrow checker, so now 400000 is hard coded in solver.rs
     // pub fn len(self, var: usize) -> usize {
-    //     100000 - self.open_spots_len[var]
+    //     400000 - self.open_spots_len[var]
     // }
     pub fn update_previous_head_insert(&mut self, var: usize, previous_head: usize, spot_going_in: usize) {
         let mut previous_head_node = &mut self.var_lists[var][previous_head];
@@ -116,7 +116,7 @@ impl SatLinkedHashSet {
         self.update_head_insert(var, spot_going_in);
     }
     pub fn update_open_spots_remove(&mut self, var: usize, spot_will_be_open: usize) {
-        // if self.open_spots_len[var] == 100000 {
+        // if self.open_spots_len[var] == 400000 {
         //     println!("{}", var);
         // }
         self.open_spots[var][self.open_spots_len[var]] = spot_will_be_open;
