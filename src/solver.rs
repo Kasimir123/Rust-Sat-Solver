@@ -476,13 +476,22 @@ impl Solver {
         let mut s_t_a_lbd: f64 = 0.0;
         let mut cum_lbd: f64 = 0.0;
         let mut cur_a: f64 = 0.0;
-        let mut l_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new(500);
+
+        let f64_num_vars = self.variables.len() as f64;
+        let big_queue = f64_num_vars * 2.5;
+        let small_queue = f64_num_vars * 1.25;
+        let mut l_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new(big_queue as usize);
         let mut l_t_a_a: f64 = 0.0;
-        let mut s_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new(250);
+        // let mut m_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new(250);
+        // let mut m_t_a_a: f64 = 0.0;
+        let mut s_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new(small_queue as usize);
         let mut s_t_a_a: f64 = 0.0;
         let mut tot_conflicts: f64 = 0.0;
-        let mut tot_conflicts_usize: usize = 0;
-        let mut prev_conflicts_usize: usize = 0;
+        // let mut tot_conflicts_usize: usize = 0;
+        // let mut prev_conflicts_usize: usize = 0;
+        let mut prev_restart_conflicts: f64 = 0.0;
+        let mut num_restarts: f64 = 0.0;
+        let progress_indicator = (self.variables.len() as f64) / 8.0 + 1.0;
 
         // need to check what sort() really does to con vec
         // I might still be adding non-unique clauses
@@ -497,11 +506,10 @@ impl Solver {
         }
         let mut tot_clauses_learned: f64 = unique_clauses.len() as f64;
         let mut prev_clauses_learned: f64 = tot_clauses_learned;
-        let mut recent_max: usize = 0;
-        let mut recent_max_conflicts: usize = 0;
-        let mut recent_max_switch: usize = 0;
+        // let mut recent_max: usize = 0;
+        // let mut recent_max_conflicts: usize = 0;
+        // let mut recent_max_switch: usize = 0;
 
-        // let mut prev_restart: f64 = 0.0;
         
         // let mut used_conflict_set = 0;
         // let mut  debug_465 = 0;
@@ -565,10 +573,10 @@ impl Solver {
 
         // while we have at least one value to be assigned
         while !assigned.is_empty() {
-            if assigned.len() > recent_max {
-                recent_max = assigned.len();
-                recent_max_conflicts = tot_conflicts_usize;
-            }
+            // if assigned.len() > recent_max {
+            //     recent_max = assigned.len();
+            //     recent_max_conflicts = tot_conflicts_usize;
+            // }
             
             // debug_465 += 1;
             // gets the variable to assigned
@@ -706,18 +714,24 @@ impl Solver {
             // else, if the value was false, go through and backtrack (but first learn a clause)
             else {
                 tot_conflicts += 1.0;
-                tot_conflicts_usize += 1;
+                // tot_conflicts_usize += 1;
                 cur_a = (assigned.len() - 1) as f64;
-                if l_t_a_q_a.len < 500 {
+                if l_t_a_q_a.len < big_queue as usize {
                     l_t_a_a = l_t_a_a + (cur_a - l_t_a_a) / tot_conflicts;
                 } else {
-                    l_t_a_a = l_t_a_a + cur_a / 500.0 - l_t_a_q_a.d() / 500.0;
+                    l_t_a_a = l_t_a_a + cur_a / big_queue - l_t_a_q_a.d() / big_queue;
                 }
                 l_t_a_q_a.e(cur_a);
-                if s_t_a_q_a.len < 250 {
+                // if m_t_a_q_a.len < 250 {
+                //     m_t_a_a = m_t_a_a + (cur_a - m_t_a_a) / tot_conflicts;
+                // } else {
+                //     m_t_a_a = m_t_a_a + cur_a / 250.0 - m_t_a_q_a.d() / 250.0;
+                // }
+                // m_t_a_q_a.e(cur_a);
+                if s_t_a_q_a.len < small_queue as usize {
                     s_t_a_a = s_t_a_a + (cur_a - s_t_a_a) / tot_conflicts;
                 } else {
-                    s_t_a_a = s_t_a_a + cur_a / 250.0 - s_t_a_q_a.d() / 250.0;
+                    s_t_a_a = s_t_a_a + cur_a / small_queue - s_t_a_q_a.d() / small_queue;
                 }
                 s_t_a_q_a.e(cur_a);
 
@@ -829,21 +843,29 @@ impl Solver {
             //     / moving_average_diff;
             // let constant_based_on_problem_size: f64 = 50.0;
 
+            // let proportion_this_restart = (tot_conflicts - prev_restart_conflicts) / tot_conflicts;
+
             // 50 is min number of conflicts since last restart
             // maybe don't need this... leaving it here because I might need
             // it for bigger problems
             // if tot_conflicts > prev_restart + 50.0
             //     && tot_clauses_learned > prev_clauses_learned + 20.0
             if tot_clauses_learned > prev_clauses_learned + 20.0
-                && cur_a <= s_t_a_a
-                && s_t_a_a <= l_t_a_a
+                && cur_a <= l_t_a_a
+                && ((s_t_a_a - l_t_a_a) < progress_indicator)
+                // && !(s_t_a_a > m_t_a_a
+                //      && m_t_a_a > l_t_a_a)
+                // && ((cur_a <= s_t_a_a
+                //      && s_t_a_a <= l_t_a_a)
+                //     || proportion_this_restart > 1.000001 / num_restarts)
             {
-                println!("{}", tot_conflicts);
-                if recent_max_conflicts <= prev_conflicts_usize {
+                num_restarts += 1.0;
+                // println!("{}", tot_conflicts);
+                // if recent_max_conflicts < prev_conflicts_usize {
                     prev_clauses_learned = tot_clauses_learned;
-                    // prev_restart = tot_conflicts;
-                    prev_conflicts_usize = tot_conflicts_usize;
-                    recent_max_switch = 0;
+                    prev_restart_conflicts = tot_conflicts;
+                    // prev_conflicts_usize = tot_conflicts_usize;
+                    // recent_max_switch = 0;
                     let num_pop = assigned.len() - 1;
                     for _i in 0..num_pop {
                         var_exhausted[assigned.len() - 1] = None;
@@ -891,12 +913,12 @@ impl Solver {
                     }
                     conflict_set.list_len[next_var_pos] = 0;
                     var_assigned_index[next_var_pos] = assigned.len() - 1;
-                } else {
-                    recent_max_switch += 1;
-                    if recent_max_switch > 1 {                            
-                        prev_conflicts_usize = recent_max_conflicts;
-                    }
-                }
+                // } else {
+                //     recent_max_switch += 1;
+                //     if recent_max_switch > 1 {                            
+                //         prev_conflicts_usize = recent_max_conflicts;
+                //     }
+                // }
             }
         }
 
