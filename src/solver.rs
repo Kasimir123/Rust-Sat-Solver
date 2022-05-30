@@ -215,7 +215,7 @@ impl Solver {
         let mut max_deg = 0;
         let mut var_max_deg = usize::MAX;
         for var_pos in min_groups_vars.iter() {
-            let deg = 400000 - variable_unsat_groups.open_spots_len[*var_pos];
+            let deg = 10000 - variable_unsat_groups.open_spots_len[*var_pos];
             // println!("deg: {}", deg);
             if deg > max_deg {
                 var_max_deg = *var_pos;
@@ -663,7 +663,7 @@ impl Solver {
                 self.connections_checked += next_cur.connections_checked;
 
                 if !next_cur.set {
-                    // println!("test");
+                    // println!("{}", unique_clauses.len());
                     return SolveResult {
                         sat: true,
                         connections_checked: self.connections_checked as u64,
