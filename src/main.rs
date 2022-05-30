@@ -7,6 +7,7 @@ pub mod sat_linked_hash_set;
 pub mod implication_graph;
 pub mod antecedent;
 pub mod learned_clause;
+pub mod moving_average_queue;
 
 // import solver
 use solver::Solver;
@@ -60,8 +61,8 @@ fn main() {
     // let f = "./benchmark-cases/uf100.cnf";
     // let f = "./benchmark-cases/uf125.cnf";
     // let f = "./benchmark-cases/uf150.cnf";
-    let f = "./benchmark-cases/uf175.cnf";
-    // let f = "./benchmark-cases/uf200.cnf";
+    // let f = "./benchmark-cases/uf175.cnf";
+    let f = "./benchmark-cases/uf200.cnf";
     // let f = "./benchmark-cases/uf250.cnf";
     
     // note that implementation is limited to 250 variables for now

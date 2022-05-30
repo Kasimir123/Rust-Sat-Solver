@@ -6,6 +6,10 @@ use crate::sat_linked_hash_set::SatLinkedHashSet;
 use crate::implication_graph::ImplicationGraph;
 use crate::antecedent::Antecedent;
 // use crate::learned_clause::LearnedClause;
+use crate::moving_average_queue::MovingAverageQueue;
+
+// use heapless::spsc::Queue;
+// use heapless::consts::*;
 
 // import required imports
 use std::collections::{BTreeSet, VecDeque};
@@ -473,10 +477,12 @@ impl Solver {
         let mut s_t_a_lbd: f64 = 0.0;
         let mut cum_lbd: f64 = 0.0;
         let mut cur_a: f64 = 0.0;
-        let mut s_t_a_q_a: VecDeque<f64> = VecDeque::new();
-        let mut l_t_a_q_a: VecDeque<f64> = VecDeque::new();
+        // let mut s_t_a_q_a: VecDeque<f64> = VecDeque::new();
+        // let mut s_t_a_q_a: Queue<f64, 512> = Queue::new();
+        let mut s_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new();
+        // let mut l_t_a_q_a: VecDeque<f64> = VecDeque::new();
         let mut s_t_a_a: f64 = 0.0;
-        let mut l_t_a_a: f64 = 0.0;
+        // let mut l_t_a_a: f64 = 0.0;
         let mut tot_conflicts: f64 = 0.0;
 
         // need to check what sort() really does to con vec
@@ -701,12 +707,18 @@ impl Solver {
                 // also 500 and 2 (50 min) for 175
                 // 2500 and 12 is decent for 175 (considering the high numbers are often awful)
                 //
-                if s_t_a_q_a.len() < 500 {
+                // I think this queue thing is really slow
+                // if s_t_a_q_a.len() < 500 {
+                if s_t_a_q_a.len < 500 {
                     s_t_a_a = s_t_a_a + (cur_a - s_t_a_a) / tot_conflicts;
                 } else {
-                    s_t_a_a = s_t_a_a + cur_a / 500.0 - s_t_a_q_a.pop_front().unwrap() / 500.0;
+                    // s_t_a_a = s_t_a_a + cur_a / 500.0 - s_t_a_q_a.pop_front().unwrap() / 500.0;
+                    // s_t_a_a = s_t_a_a + cur_a / 500.0 - s_t_a_q_a.dequeue().unwrap() / 500.0;
+                    s_t_a_a = s_t_a_a + cur_a / 500.0 - s_t_a_q_a.d() / 500.0;
                 }
-                s_t_a_q_a.push_back(cur_a);
+                // s_t_a_q_a.push_back(cur_a);
+                s_t_a_q_a.e(cur_a);
+                // assert!(s_t_a_q_a.enqueue(cur_a).is_ok());
                 // if l_t_a_q_a.len() < 500 {
                 //     l_t_a_a = l_t_a_a + (cur_a - l_t_a_a) / tot_conflicts;
                 // } else {
