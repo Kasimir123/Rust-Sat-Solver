@@ -704,25 +704,24 @@ impl Solver {
                 cur_a = (assigned.len() - 1) as f64;
                 // using self.backtracks instead of tot_conflicts for restart measure
                 //  200 and 2 (50 min conflict) is fast for 175
-                // also 500 and 2 (50 min) for 175
-                // 2500 and 12 is decent for 175 (considering the high numbers are often awful)
+                // also 250 and 2 (50 min) for 175
                 //
                 // I think this queue thing is really slow
-                // if s_t_a_q_a.len() < 500 {
-                if s_t_a_q_a.len < 500 {
+                // if s_t_a_q_a.len() < 250 {
+                if s_t_a_q_a.len < 250 {
                     s_t_a_a = s_t_a_a + (cur_a - s_t_a_a) / tot_conflicts;
                 } else {
-                    // s_t_a_a = s_t_a_a + cur_a / 500.0 - s_t_a_q_a.pop_front().unwrap() / 500.0;
-                    // s_t_a_a = s_t_a_a + cur_a / 500.0 - s_t_a_q_a.dequeue().unwrap() / 500.0;
-                    s_t_a_a = s_t_a_a + cur_a / 500.0 - s_t_a_q_a.d() / 500.0;
+                    // s_t_a_a = s_t_a_a + cur_a / 250.0 - s_t_a_q_a.pop_front().unwrap() / 250.0;
+                    // s_t_a_a = s_t_a_a + cur_a / 250.0 - s_t_a_q_a.dequeue().unwrap() / 250.0;
+                    s_t_a_a = s_t_a_a + cur_a / 250.0 - s_t_a_q_a.d() / 250.0;
                 }
                 // s_t_a_q_a.push_back(cur_a);
                 s_t_a_q_a.e(cur_a);
                 // assert!(s_t_a_q_a.enqueue(cur_a).is_ok());
-                // if l_t_a_q_a.len() < 500 {
+                // if l_t_a_q_a.len() < 250 {
                 //     l_t_a_a = l_t_a_a + (cur_a - l_t_a_a) / tot_conflicts;
                 // } else {
-                //     l_t_a_a = l_t_a_a + cur_a / 500.0 - l_t_a_q_a.pop_front().unwrap() / 500.0;
+                //     l_t_a_a = l_t_a_a + cur_a / 250.0 - l_t_a_q_a.pop_front().unwrap() / 250.0;
                 // }
                 // l_t_a_q_a.push_back(cur_a);
 
@@ -754,8 +753,8 @@ impl Solver {
                 }
                 // if num_d.len() < 3 {
                 if true {
-                    // if num_d.len() < 3 {
-                    if true {
+                    if num_d.len() < 3 {
+                    // if true {
                     // if implied.learned.len() < 5 {
                         let mut lits = Vec::new();
                         for con in implied.learned.iter() {
@@ -937,13 +936,13 @@ impl Solver {
             // let percent_used = ((used_conflict_set as f64) / ((self.backtracks + 1) as f64)) * (100 as f64);
             // println!("{}", percent_used);
             // 50 is min restart
-            if tot_conflicts > prev_restart + 50.0 {
+            if tot_conflicts > prev_restart + 25.0 {
             // if tot_clauses_learned > prev_clauses_learned + 128.0 {
                 // if s_t_a_lbd / cum_lbd > 1.25 && !(cur_a > s_t_a_a) {
                 // if s_t_a_lbd / cum_lbd > 1.1 && !(cur_a > s_t_a_a) {
                 //     cum_lbd = s_t_a_lbd;
                 // if tot_clauses_learned > prev_clauses_learned + 20.0 && !(s_t_a_a > l_t_a_a) {
-                if tot_clauses_learned > prev_clauses_learned + 20.0 && !(cur_a > s_t_a_a) {
+                if tot_clauses_learned > prev_clauses_learned + 10.0 && !(cur_a > s_t_a_a) {
                 // if s_t_a_a < l_t_a_a {
                     // println!("{}", tot_conflicts);
                     // println!("{}", tot_clauses_learned);
