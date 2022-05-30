@@ -740,7 +740,8 @@ impl Solver {
                 s_t_a_q_lbd.push_back(cur_lbd);
                 // if num_d.len() < 3 {
                 if true {
-                    if num_d.len() < 3 {
+                    // if num_d.len() < 3 {
+                    if true {
                         let mut lits = Vec::new();
                         for con in implied.learned.iter() {
                             let connection = *self.connections.get(*con).unwrap();
