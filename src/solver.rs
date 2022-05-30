@@ -707,10 +707,10 @@ impl Solver {
                     s_t_a_a = s_t_a_a + cur_a / 500.0 - s_t_a_q_a.pop_front().unwrap() / 500.0;
                 }
                 s_t_a_q_a.push_back(cur_a);
-                // if l_t_a_q_a.len() < 128 {
+                // if l_t_a_q_a.len() < 500 {
                 //     l_t_a_a = l_t_a_a + (cur_a - l_t_a_a) / tot_conflicts;
                 // } else {
-                //     l_t_a_a = l_t_a_a + cur_a / 128.0 - l_t_a_q_a.pop_front().unwrap() / 128.0;
+                //     l_t_a_a = l_t_a_a + cur_a / 500.0 - l_t_a_q_a.pop_front().unwrap() / 500.0;
                 // }
                 // l_t_a_q_a.push_back(cur_a);
 
@@ -930,6 +930,7 @@ impl Solver {
                 // if s_t_a_lbd / cum_lbd > 1.25 && !(cur_a > s_t_a_a) {
                 // if s_t_a_lbd / cum_lbd > 1.1 && !(cur_a > s_t_a_a) {
                 //     cum_lbd = s_t_a_lbd;
+                // if tot_clauses_learned > prev_clauses_learned + 20.0 && !(s_t_a_a > l_t_a_a) {
                 if tot_clauses_learned > prev_clauses_learned + 20.0 && !(cur_a > s_t_a_a) {
                 // if s_t_a_a < l_t_a_a {
                     // println!("{}", tot_conflicts);
