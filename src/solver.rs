@@ -64,8 +64,10 @@ impl Solver {
     pub fn new() -> Self {
         Solver {
             variables: Vec::new(),
-            connection_groups: Vec::new(),
-            connections: Vec::new(),
+            // connection_groups: Vec::new(),
+            connection_groups: Vec::with_capacity(10000),
+            // connections: Vec::new(),
+            connections: Vec::with_capacity(50000),
             variable_connections: Vec::new(),
             backtracks: 0,
             connections_checked: 0,
@@ -474,12 +476,10 @@ impl Solver {
         let mut s_t_a_lbd: f64 = 0.0;
         let mut cum_lbd: f64 = 0.0;
         let mut cur_a: f64 = 0.0;
-        // let mut s_t_a_q_a: VecDeque<f64> = VecDeque::new();
-        // let mut s_t_a_q_a: Queue<f64, 512> = Queue::new();
-        let mut s_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new();
-        // let mut l_t_a_q_a: VecDeque<f64> = VecDeque::new();
+        let mut l_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new(5000);
+        let mut l_t_a_a: f64 = 0.0;
+        let mut s_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new(500);
         let mut s_t_a_a: f64 = 0.0;
-        // let mut l_t_a_a: f64 = 0.0;
         let mut tot_conflicts: f64 = 0.0;
         let mut tot_conflicts_usize: usize = 0;
 
@@ -500,7 +500,7 @@ impl Solver {
         let mut recent_max_conflicts: usize = 0;
         let mut recent_max_switch: usize = 0;
 
-        let mut prev_restart: f64 = 0.0;
+        // let mut prev_restart: f64 = 0.0;
         let mut prev_restart_usize: usize = 0;
         
         // let mut used_conflict_set = 0;
@@ -708,6 +708,12 @@ impl Solver {
                 tot_conflicts += 1.0;
                 tot_conflicts_usize += 1;
                 cur_a = (assigned.len() - 1) as f64;
+                if l_t_a_q_a.len < 5000 {
+                    l_t_a_a = l_t_a_a + (cur_a - l_t_a_a) / tot_conflicts;
+                } else {
+                    l_t_a_a = l_t_a_a + cur_a / 5000.0 - l_t_a_q_a.d() / 5000.0;
+                }
+                l_t_a_q_a.e(cur_a);
                 if s_t_a_q_a.len < 500 {
                     s_t_a_a = s_t_a_a + (cur_a - s_t_a_a) / tot_conflicts;
                 } else {
@@ -774,10 +780,16 @@ impl Solver {
                 let mut assignment = assigned[assigned.len() - 1];
                 if matches!(var_exhausted.get(assigned.len() - 1), Some(Some(true))) {
                     loop {
-                        if conflict_set.var_set[assignment][assigned[assigned.len() - 1]] {
-                            for i in 0..conflict_set.list_len[assignment] {
-                                let move_conflict = conflict_set.var_list[assignment][i];
-                                let last_var = assigned[assigned.len() - 1];
+                        if conflict_set
+                            .var_set[assignment][assigned[assigned.len() - 1]]
+                        {
+                            for i in 0..conflict_set
+                                .list_len[assignment]
+                            {
+                                let move_conflict: usize
+                                    = conflict_set.var_list[assignment][i];
+                                let last_var
+                                    = assigned[assigned.len() - 1];
                                 if !conflict_set.var_set[last_var][move_conflict] {
                                     conflict_set.var_list[last_var][conflict_set.list_len[last_var]] = move_conflict;
                                     conflict_set.list_len[last_var] += 1;
@@ -812,39 +824,37 @@ impl Solver {
             // println!("{}", percent_used);
 
             // 50 is min number of conflicts since last restart
-            // maybe don't need this... all I would need to do is check that
-            // i've learned x new clauses
-            if tot_conflicts > prev_restart + 50.0
-                && tot_clauses_learned > prev_clauses_learned + 20.0
-                && cur_a <= s_t_a_a as f64
+            // maybe don't need this... leaving it here because I might need
+            // it for bigger problems
+            // if tot_conflicts > prev_restart + 50.0
+            //     && tot_clauses_learned > prev_clauses_learned + 20.0
+            if tot_clauses_learned > prev_clauses_learned + 20.0
+                && cur_a <= s_t_a_a
+                && s_t_a_a <= l_t_a_a
             {
                 if recent_max_conflicts <= prev_restart_usize {
                     prev_clauses_learned = tot_clauses_learned;
-                    prev_restart = tot_conflicts;
-                    recent_max_switch = 0;
+                    // prev_restart = tot_conflicts;
                     prev_restart_usize = tot_conflicts_usize;
+                    recent_max_switch = 0;
                     let num_pop = assigned.len() - 1;
                     for _i in 0..num_pop {
                         var_exhausted[assigned.len() - 1] = None;
                         for i in 0..groups_sat_at_assignment
                             [assigned.len() - 2].len()
                         {
-                            let group = groups_sat_at_assignment
+                            let group
+                                = groups_sat_at_assignment
                                 [assigned.len() - 2][i];
                             unsat_groups.insert(group);
-                            let con_group =
-                                self
-                                .connection_groups
-                                .get(group)
-                                .unwrap();
+                            let con_group
+                                = self.connection_groups
+                                .get(group).unwrap();
                             for con in con_group.connections.iter()
                             {
-                                let var =
-                                    self
-                                    .connections
-                                    .get(*con)
-                                    .unwrap()
-                                    .var_pos;
+                                let var
+                                    = self.connections
+                                    .get(*con).unwrap().var_pos;
                                 if !variable_unsat_groups
                                     .contains(var, group)
                                 {
@@ -867,7 +877,8 @@ impl Solver {
                         .antecedent = next_cur.antecedent;
                     antecedents[assigned.len() - 1].d = 0;
                     for i in 0..conflict_set.list_len[next_var_pos] {
-                        let var_pos = conflict_set
+                        let var_pos
+                            = conflict_set
                             .var_list[next_var_pos][i];
                         conflict_set.var_set[next_var_pos][var_pos] = false;
                     }

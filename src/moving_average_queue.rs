@@ -27,11 +27,11 @@ pub struct MovingAverageQueue {
 }
 
 impl MovingAverageQueue {
-    pub fn new() -> Self {
+    pub fn new(size: usize) -> Self {
         let head: usize = usize::MAX;
         let tail: usize = usize::MAX;
-        let mut nodes: Vec<MAQNode> = Vec::new();
-        for _i in 0..500 {
+        let mut nodes: Vec<MAQNode> = Vec::with_capacity(size);
+        for _i in 0..size {
             nodes.push(MAQNode::new());
         }
         let switch = false;
