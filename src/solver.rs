@@ -479,11 +479,12 @@ impl Solver {
 
         let f64_num_vars = self.variables.len() as f64;
         let big_queue = f64_num_vars * 2.5;
-        let small_queue = f64_num_vars * 1.25;
+        let medium_queue = f64_num_vars * 1.25;
+        let small_queue = f64_num_vars * 0.25;
         let mut l_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new(big_queue as usize);
         let mut l_t_a_a: f64 = 0.0;
-        // let mut m_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new(250);
-        // let mut m_t_a_a: f64 = 0.0;
+        let mut m_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new(medium_queue as usize);
+        let mut m_t_a_a: f64 = 0.0;
         let mut s_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new(small_queue as usize);
         let mut s_t_a_a: f64 = 0.0;
         let mut tot_conflicts: f64 = 0.0;
@@ -491,7 +492,8 @@ impl Solver {
         // let mut prev_conflicts_usize: usize = 0;
         let mut prev_restart_conflicts: f64 = 0.0;
         let mut num_restarts: f64 = 0.0;
-        let progress_indicator = (self.variables.len() as f64) / 8.0 + 1.0;
+        // let mut progress_indicator = (self.variables.len() as f64) / 8.0 + 1.0;
+        
 
         // need to check what sort() really does to con vec
         // I might still be adding non-unique clauses
@@ -722,12 +724,12 @@ impl Solver {
                     l_t_a_a = l_t_a_a + cur_a / big_queue - l_t_a_q_a.d() / big_queue;
                 }
                 l_t_a_q_a.e(cur_a);
-                // if m_t_a_q_a.len < 250 {
-                //     m_t_a_a = m_t_a_a + (cur_a - m_t_a_a) / tot_conflicts;
-                // } else {
-                //     m_t_a_a = m_t_a_a + cur_a / 250.0 - m_t_a_q_a.d() / 250.0;
-                // }
-                // m_t_a_q_a.e(cur_a);
+                if m_t_a_q_a.len < medium_queue as usize {
+                    m_t_a_a = m_t_a_a + (cur_a - m_t_a_a) / tot_conflicts;
+                } else {
+                    m_t_a_a = m_t_a_a + cur_a / medium_queue - m_t_a_q_a.d() / medium_queue;
+                }
+                m_t_a_q_a.e(cur_a);
                 if s_t_a_q_a.len < small_queue as usize {
                     s_t_a_a = s_t_a_a + (cur_a - s_t_a_a) / tot_conflicts;
                 } else {
@@ -781,10 +783,10 @@ impl Solver {
                         unsat_groups.insert(learned_clause_index);
                         cur_lbd = num_d.len() as f64;
                         cum_lbd = cum_lbd + (cur_lbd - cum_lbd) / tot_conflicts;
-                        if s_t_a_q_lbd.len() < 50 {
+                        if s_t_a_q_lbd.len() < 20 {
                             s_t_a_lbd = cum_lbd;
                         } else {
-                            s_t_a_lbd = s_t_a_lbd + cur_lbd / 50.0 - s_t_a_q_lbd.pop_front().unwrap() / 50.0;
+                            s_t_a_lbd = s_t_a_lbd + cur_lbd / 20.0 - s_t_a_q_lbd.pop_front().unwrap() / 20.0;
                         }
                         s_t_a_q_lbd.push_back(cur_lbd);
                     }
@@ -851,16 +853,13 @@ impl Solver {
             // if tot_conflicts > prev_restart + 50.0
             //     && tot_clauses_learned > prev_clauses_learned + 20.0
             if tot_clauses_learned > prev_clauses_learned + 20.0
-                && cur_a <= l_t_a_a
-                && ((s_t_a_a - l_t_a_a) < progress_indicator)
-                // && !(s_t_a_a > m_t_a_a
-                //      && m_t_a_a > l_t_a_a)
-                // && ((cur_a <= s_t_a_a
-                //      && s_t_a_a <= l_t_a_a)
-                //     || proportion_this_restart > 1.000001 / num_restarts)
+                && s_t_a_lbd / cum_lbd > 1.75
+                // && !(s_t_a_a > m_t_a_a && m_t_a_a > l_t_a_a)
+                && !(s_t_a_a  > l_t_a_a)
             {
                 num_restarts += 1.0;
                 // println!("{}", tot_conflicts);
+                println!("{}", s_t_a_lbd / cum_lbd);
                 // if recent_max_conflicts < prev_conflicts_usize {
                     prev_clauses_learned = tot_clauses_learned;
                     prev_restart_conflicts = tot_conflicts;
