@@ -9,7 +9,8 @@ use crate::antecedent::Antecedent;
 use crate::moving_average_queue::MovingAverageQueue;
 
 // import required imports
-use std::collections::{BTreeSet, VecDeque};
+// use std::collections::{BTreeSet, VecDeque};
+use std::collections::BTreeSet;
 use std::error::Error;
 use std::io::{BufRead, BufReader, Read};
 
@@ -471,27 +472,27 @@ impl Solver {
 
     // solves the sat problem
     pub fn solve(&mut self) -> SolveResult {
-        let mut cur_lbd: f64;
-        let mut s_t_a_q_lbd: VecDeque<f64> = VecDeque::new();
-        let mut s_t_a_lbd: f64 = 0.0;
-        let mut cum_lbd: f64 = 0.0;
+        // let mut cur_lbd: f64;
+        // let mut s_t_a_q_lbd: VecDeque<f64> = VecDeque::new();
+        // let mut s_t_a_lbd: f64 = 0.0;
+        // let mut cum_lbd: f64 = 0.0;
         let mut cur_a: f64 = 0.0;
 
         let f64_num_vars = self.variables.len() as f64;
         let big_queue = f64_num_vars * 2.5;
-        let medium_queue = f64_num_vars * 1.25;
-        let small_queue = f64_num_vars * 0.25;
+        // let medium_queue = f64_num_vars * 1.25;
+        // let small_queue = f64_num_vars * 0.25;
         let mut l_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new(big_queue as usize);
         let mut l_t_a_a: f64 = 0.0;
-        let mut m_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new(medium_queue as usize);
-        let mut m_t_a_a: f64 = 0.0;
-        let mut s_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new(small_queue as usize);
-        let mut s_t_a_a: f64 = 0.0;
+        // let mut m_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new(medium_queue as usize);
+        // let mut m_t_a_a: f64 = 0.0;
+        // let mut s_t_a_q_a: MovingAverageQueue = MovingAverageQueue::new(small_queue as usize);
+        // let mut s_t_a_a: f64 = 0.0;
         let mut tot_conflicts: f64 = 0.0;
         // let mut tot_conflicts_usize: usize = 0;
         // let mut prev_conflicts_usize: usize = 0;
-        let mut prev_restart_conflicts: f64 = 0.0;
-        let mut num_restarts: f64 = 0.0;
+        // let mut prev_restart_conflicts: f64 = 0.0;
+        // let mut num_restarts: f64 = 1.0;
         // let mut progress_indicator = (self.variables.len() as f64) / 8.0 + 1.0;
         
 
@@ -724,18 +725,18 @@ impl Solver {
                     l_t_a_a = l_t_a_a + cur_a / big_queue - l_t_a_q_a.d() / big_queue;
                 }
                 l_t_a_q_a.e(cur_a);
-                if m_t_a_q_a.len < medium_queue as usize {
-                    m_t_a_a = m_t_a_a + (cur_a - m_t_a_a) / tot_conflicts;
-                } else {
-                    m_t_a_a = m_t_a_a + cur_a / medium_queue - m_t_a_q_a.d() / medium_queue;
-                }
-                m_t_a_q_a.e(cur_a);
-                if s_t_a_q_a.len < small_queue as usize {
-                    s_t_a_a = s_t_a_a + (cur_a - s_t_a_a) / tot_conflicts;
-                } else {
-                    s_t_a_a = s_t_a_a + cur_a / small_queue - s_t_a_q_a.d() / small_queue;
-                }
-                s_t_a_q_a.e(cur_a);
+                // if m_t_a_q_a.len < medium_queue as usize {
+                //     m_t_a_a = m_t_a_a + (cur_a - m_t_a_a) / tot_conflicts;
+                // } else {
+                //     m_t_a_a = m_t_a_a + cur_a / medium_queue - m_t_a_q_a.d() / medium_queue;
+                // }
+                // m_t_a_q_a.e(cur_a);
+                // if s_t_a_q_a.len < small_queue as usize {
+                //     s_t_a_a = s_t_a_a + (cur_a - s_t_a_a) / tot_conflicts;
+                // } else {
+                //     s_t_a_a = s_t_a_a + cur_a / small_queue - s_t_a_q_a.d() / small_queue;
+                // }
+                // s_t_a_q_a.e(cur_a);
 
                 // clause learning
                 let implied: ImplicationGraph = ImplicationGraph::new(
@@ -781,14 +782,14 @@ impl Solver {
                         }
                         self.connection_groups.push(learned_clause);
                         unsat_groups.insert(learned_clause_index);
-                        cur_lbd = num_d.len() as f64;
-                        cum_lbd = cum_lbd + (cur_lbd - cum_lbd) / tot_conflicts;
-                        if s_t_a_q_lbd.len() < 20 {
-                            s_t_a_lbd = cum_lbd;
-                        } else {
-                            s_t_a_lbd = s_t_a_lbd + cur_lbd / 20.0 - s_t_a_q_lbd.pop_front().unwrap() / 20.0;
-                        }
-                        s_t_a_q_lbd.push_back(cur_lbd);
+                        // cur_lbd = num_d.len() as f64;
+                        // cum_lbd = cum_lbd + (cur_lbd - cum_lbd) / tot_conflicts;
+                        // if s_t_a_q_lbd.len() < 20 {
+                        //     s_t_a_lbd = cum_lbd;
+                        // } else {
+                        //     s_t_a_lbd = s_t_a_lbd + cur_lbd / 20.0 - s_t_a_q_lbd.pop_front().unwrap() / 20.0;
+                        // }
+                        // s_t_a_q_lbd.push_back(cur_lbd);
                     }
                 }
                 
@@ -853,16 +854,15 @@ impl Solver {
             // if tot_conflicts > prev_restart + 50.0
             //     && tot_clauses_learned > prev_clauses_learned + 20.0
             if tot_clauses_learned > prev_clauses_learned + 20.0
-                && s_t_a_lbd / cum_lbd > 1.75
-                // && !(s_t_a_a > m_t_a_a && m_t_a_a > l_t_a_a)
-                && !(s_t_a_a  > l_t_a_a)
+                // && m_t_a_a < l_t_a_a
+                && cur_a < l_t_a_a
             {
-                num_restarts += 1.0;
+                // num_restarts += 1.0;
                 // println!("{}", tot_conflicts);
-                println!("{}", s_t_a_lbd / cum_lbd);
+                // println!("{}", s_t_a_lbd / cum_lbd);
                 // if recent_max_conflicts < prev_conflicts_usize {
                     prev_clauses_learned = tot_clauses_learned;
-                    prev_restart_conflicts = tot_conflicts;
+                    // prev_restart_conflicts = tot_conflicts;
                     // prev_conflicts_usize = tot_conflicts_usize;
                     // recent_max_switch = 0;
                     let num_pop = assigned.len() - 1;
